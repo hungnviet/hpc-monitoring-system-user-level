@@ -1,0 +1,53 @@
+# Generic build artifacts
+*.o
+*.a
+*.so
+*.out
+*.obj
+*.lo
+*.la
+
+# eBPF generated artifacts
+*.bpf.o
+*.skel.h
+vmlinux.h
+
+# Local binaries
+memleak
+cputime
+
+# Common build dirs
+/build/
+/bin/
+
+# Editor/OS noise
+*.swp
+*~
+.DS_Store
+```// filepath: /home/nvhung/Desktop/hpc-monitoring-system-user-level/.gitignore
+# Generic build artifacts
+*.o
+*.a
+*.so
+*.out
+*.obj
+*.lo
+*.la
+
+# eBPF generated artifacts
+*.bpf.o
+*.skel.h
+vmlinux.h
+
+# Local binaries
+memleak
+cputime
+
+# Common build dirs
+/build/
+/bin/
+
+# Editor/OS noise
+*.swp
+*~
+.DS_Store
