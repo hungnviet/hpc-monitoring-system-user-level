@@ -20,6 +20,14 @@ struct {
   __type(value, u64); // ns
 } cpu_total_ns SEC(".maps");
 
+// Per-TID UID tracking
+struct {
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 65536);
+  __type(key, pid_t); // TID
+  __type(value, u32); // UID
+} tid_uid SEC(".maps");
+
 SEC("tracepoint/sched/sched_switch")
 int handle_sched_switch(struct trace_event_raw_sched_switch *ctx) {
   pid_t prev_tid = ctx->prev_pid; // scheduled out
@@ -42,6 +50,10 @@ int handle_sched_switch(struct trace_event_raw_sched_switch *ctx) {
   // Record start for the task being scheduled in
   if (next_tid != 0) {
     bpf_map_update_elem(&start_ns, &next_tid, &now, BPF_ANY);
+    
+    // Store UID for this TID
+    u32 uid = bpf_get_current_uid_gid() & 0xFFFFFFFF;
+    bpf_map_update_elem(&tid_uid, &next_tid, &uid, BPF_ANY);
   }
 
   return 0;

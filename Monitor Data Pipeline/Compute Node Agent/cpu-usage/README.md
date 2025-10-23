@@ -33,19 +33,21 @@ This tool monitors per-process CPU time usage in real-time using eBPF (extended 
 
 ```
 [1761153775] Total On-CPU Time:
-PID    COMM             CPU_TIME_MS
-2704   gnome-shell      18.742
-33396  code             2.804
-34519  gnome-terminal-  2.656
-33384  code             1.399
-2619   systemd          1.276
+UID      USER         PID    COMM             CPU_TIME_MS
+1000     nvhung       2704   gnome-shell      18.742
+1000     nvhung       33396  code             2.804
+1000     nvhung       34519  gnome-terminal-  2.656
+0        root         944    containerd       0.378
+0        root         1046   rsyslogd         0.258
 ...
 ```
 
 **Columns**:
+- `UID`: User ID of the process owner
+- `USER`: Username (resolved from UID, falls back to numeric UID if user not found)
 - `PID`: Process ID (TGID)
 - `COMM`: Command name from `/proc/<pid>/comm`
-- `CPU_TIME_MS`: Total on-CPU time in milliseconds during the interval
+- `CPU_TIME_MS`: **On-CPU time in milliseconds during THIS INTERVAL ONLY** (sum of all threads)
 
 ## Requirements
 
