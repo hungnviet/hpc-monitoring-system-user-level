@@ -8,14 +8,13 @@ CXXFLAGS = -std=c++11 -Wall -O2
 LDFLAGS = -lpthread
 
 # Target binary name
-TARGET = gpu_process_monitor_cpp
+TARGET = gpu_nvidi_smi
 
 # Source file
-SRC = gpu_process_monitor.cpp
+SRC = gpu_nvidi_smi.cpp
 
 .PHONY: all build run clean
 
-# Build the application (default)
 all: build
 
 # Compile the C++ program
@@ -26,9 +25,10 @@ $(TARGET): $(SRC)
 	@$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
 	@echo "Build complete."
 
-# Build and run the application
+# Build and run the application (use 'sudo ./gpu_process_monitor_cpp' for full process list)
 run: build
 	@echo "Running $(TARGET)..."
+	@echo "Note: Run with 'sudo ./$(TARGET)' to see the full process list."
 	@./$(TARGET)
 
 # Clean the build artifacts
