@@ -1,1 +1,3 @@
-INFORMATION ABOUT COMPUTE NODE AGENT
+make clean
+make 
+make run
