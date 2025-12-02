@@ -5,20 +5,36 @@
 namespace monitor {
 
 GrpcClient::GrpcClient(const std::string& server_address, const std::string& node_id)
-    : node_id_(node_id), connected_(false) {
-    
-    std::cout << "[GrpcClient] Connecting to " << server_address << "..." << std::endl;
-    
-    auto channel = grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials());
-    stub_ = ::monitor::MonitorService::NewStub(channel);
-    
+    : TransportClient(node_id), server_address_(server_address) {
+
+    std::cout << "[GrpcClient] Initializing gRPC client for " << server_address << std::endl;
+    // Actual connection is done in connect() method
+}
+
+bool GrpcClient::connect() {
+    std::cout << "[GrpcClient] Connecting to " << server_address_ << "..." << std::endl;
+
+    channel_ = grpc::CreateChannel(server_address_, grpc::InsecureChannelCredentials());
+    stub_ = ::monitor::MonitorService::NewStub(channel_);
+
     auto deadline = std::chrono::system_clock::now() + std::chrono::seconds(5);
-    if (channel->WaitForConnected(deadline)) {
+    if (channel_->WaitForConnected(deadline)) {
         connected_ = true;
         std::cout << "[GrpcClient] ✓ Connected successfully" << std::endl;
+        return true;
     } else {
         std::cerr << "[GrpcClient] ✗ Failed to connect (timeout)" << std::endl;
+        connected_ = false;
+        return false;
     }
+}
+
+bool GrpcClient::disconnect() {
+    std::cout << "[GrpcClient] Disconnecting..." << std::endl;
+    connected_ = false;
+    stub_.reset();
+    channel_.reset();
+    return true;
 }
 
 ::monitor::ComputeNodeSnapshot GrpcClient::convertToProto(const ComputeNodeSnapshotInternal& snapshot) {

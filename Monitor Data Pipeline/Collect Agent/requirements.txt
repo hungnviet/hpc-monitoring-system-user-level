@@ -1,0 +1,12 @@
+# Python dependencies for Collect Agent servers
+
+# gRPC dependencies
+grpcio>=1.50.0
+grpcio-tools>=1.50.0
+protobuf>=4.21.0
+
+# MQTT dependencies
+paho-mqtt>=1.6.0
+
+# Kafka dependencies
+kafka-python>=2.0.2

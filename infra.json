@@ -3,6 +3,13 @@
       "address": "localhost:50051",
       "max_message_size": 104857600
     },
+    "mqtt_broker": {
+      "address": "localhost",
+      "port": 1883,
+      "topic": "monitoring/compute-node",
+      "qos": 1,
+      "keepalive": 60
+    },
     "compute_nodes": [
       {
         "node_id": "compute-node-01",
@@ -11,6 +18,23 @@
     ],
     "monitoring": {
       "snapshot_interval_seconds": 1,
-      "enable_gpu": true
+      "enable_gpu": true,
+      "use_simulated_data": true
+    },
+    "transport": {
+      "enable_grpc": true,
+      "enable_mqtt": true
+    },
+    "kafka": {
+      "use_mock": false,
+      "bootstrap_servers": ["localhost:9093"],
+      "topic": "raw_data",
+      "key_field": "node_id"
+    },
+    "processing": {
+      "min_cpu_threshold": 0.1,
+      "min_memory_threshold": 10485760,
+      "enable_aggregation": true,
+      "enable_enrichment": true
     }
   }

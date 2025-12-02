@@ -16,7 +16,8 @@ CPP_SRCS = main.cpp \
 	       $(USAGE_DIR)/cpu_usage.cpp \
 	       $(USAGE_DIR)/memory_usage.cpp \
 	       $(USAGE_DIR)/gpu_usage.cpp \
-	       $(GRPC_DIR)/grpc_client.cpp
+	       $(GRPC_DIR)/grpc_client.cpp \
+	       Agent/MQTT/mqtt_client.cpp
 
 BPF_SRCS = $(USAGE_DIR)/ebpf/cpu-usage/cputime.bpf.c \
 	       $(USAGE_DIR)/ebpf/memory-allocation/memleak.bpf.c
@@ -41,7 +42,8 @@ CLANG_FLAGS = -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) -I$(USAGE_DIR) -I/usr/i
 
 # Use pkg-config to get correct library flags
 PKG_CONFIG_LIBS = $(shell pkg-config --libs protobuf grpc++ grpc 2>/dev/null || echo "-lprotobuf -lgrpc++ -lgrpc -lgpr -lupb -lre2 -lz -lcares -laddress_sorting")
-LDFLAGS = -lbpf -lelf -lpthread $(PKG_CONFIG_LIBS)
+MQTT_LIBS = -lpaho-mqttpp3 -lpaho-mqtt3as
+LDFLAGS = -lbpf -lelf -lpthread $(PKG_CONFIG_LIBS) $(MQTT_LIBS)
 
 GRPC_CPP_PLUGIN = grpc_cpp_plugin
 GRPC_CPP_PLUGIN_PATH ?= $(shell which $(GRPC_CPP_PLUGIN))
@@ -124,5 +126,7 @@ install-deps:
 	    libre2-dev \
 	    libssl-dev \
 	    zlib1g-dev \
-	    libc-ares-dev
+	    libc-ares-dev \
+	    libpaho-mqtt-dev \
+	    libpaho-mqttpp-dev
 	@echo "[DEPS] ✓ Dependencies installed"
