@@ -1,12 +1,35 @@
-# Python dependencies for Collect Agent servers
+# Python dependencies for Collect Agent
+# Install with: pip install -r requirements.txt
 
-# gRPC dependencies
+# ==========================================
+# Protocol Support
+# ==========================================
+
+# gRPC dependencies - for receiving protobuf messages
 grpcio>=1.50.0
 grpcio-tools>=1.50.0
 protobuf>=4.21.0
 
-# MQTT dependencies
+# MQTT dependencies - for pub/sub messaging
 paho-mqtt>=1.6.0
 
-# Kafka dependencies
+# ==========================================
+# Data Pipeline
+# ==========================================
+
+# Kafka dependencies - for publishing processed data
 kafka-python>=2.0.2
+
+# ==========================================
+# Logging & Monitoring
+# ==========================================
+
+# Enhanced colored logging
+colorlog>=6.8.0
+
+# ==========================================
+# Utilities
+# ==========================================
+
+# Date/time utilities
+python-dateutil>=2.8.2

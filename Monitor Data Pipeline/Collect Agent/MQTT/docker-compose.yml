@@ -1,0 +1,35 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mqtt-broker
+    hostname: mqtt-broker
+
+    ports:
+      - "1883:1883"      # MQTT TCP port
+      - "9001:9001"      # MQTT WebSocket port
+
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+
+    restart: unless-stopped
+
+    networks:
+      - monitoring-network
+
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  monitoring-network:
+    name: monitoring-network
+    driver: bridge
+
+volumes:
+  mosquitto-data:
+  mosquitto-log:
