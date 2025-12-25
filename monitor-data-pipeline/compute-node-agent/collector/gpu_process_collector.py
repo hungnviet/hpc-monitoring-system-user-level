@@ -60,19 +60,3 @@ class GPUComputeMemCollector:
     def collect(self) -> Dict[int, Dict[str, Any]]:
         return sample_compute_apps()
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("window", type=float, help="Window time (seconds)")
-    args = parser.parse_args()
-
-    collector = GPUComputeMemCollector()
-
-    try:
-        while True:
-            time.sleep(args.window)
-            data = collector.collect()
-            for pid, info in data.items():
-                print(f"{pid} - {info['process_name']} - {info['used_memory_mib']} MiB")
-            print("-" * 48)
-    except KeyboardInterrupt:
-        pass

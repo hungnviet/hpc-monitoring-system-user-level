@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package monitor;
+
+message Alert {
+    string node_id = 1;
+    string collect_agent_id = 2;
+    string alert_type = 3;
+    string severity = 4;
+    string message = 5;
+    int64 timestamp = 6;
+    map<string, string> metadata = 7;
+}
+
+message AlertResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+service AlertService {
+    rpc SendAlert(Alert) returns (AlertResponse);
+}

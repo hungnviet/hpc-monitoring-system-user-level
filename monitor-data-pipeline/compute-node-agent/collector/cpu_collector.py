@@ -86,23 +86,7 @@ class CPUCollector:
     def clear(self) -> None:
         self.pid_info.clear() 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("window", type=float, help="Window time (seconds)")
-    args = parser.parse_args()
 
-    collector = CPUCollector()
-
-    try:
-        while True:
-            collector.clear()
-            time.sleep(args.window) ## trong luc ngu thi ebpf van chay , ngu day thi collect roi clear data 
-            data = collector.collect()
-            for pid, info in data.items():
-                print(f'{pid} - {info["cpu_ontime_ns"]} | {info["uid"]} | {info["comm"]}')
-            print("-" * 48)
-    except KeyboardInterrupt:
-        pass
 
 
 #sudo python3 cpu-collector.py 5

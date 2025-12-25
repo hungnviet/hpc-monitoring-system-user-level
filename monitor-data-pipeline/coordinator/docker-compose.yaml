@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.9
+    container_name: etcd-server
+    hostname: etcd
+    ports:
+      - "2379:2379"  # Client communication
+      - "2380:2380"  # Peer communication
+    environment:
+      - ETCD_NAME=etcd-node
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_CLUSTER=etcd-node=http://0.0.0.0:2380
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
+      - ETCD_INITIAL_CLUSTER_STATE=new
+      - ALLOW_NONE_AUTHENTICATION=yes
+    volumes:
+      - etcd-data:/etcd-data
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: etcdkeeper for web UI to manage etcd
+  etcdkeeper:
+    image: deltaprojects/etcdkeeper:latest
+    container_name: etcdkeeper
+    ports:
+      - "8080:8080"  # Web UI
+    environment:
+      - HOST=0.0.0.0
+    depends_on:
+      - etcd
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
+volumes:
+  etcd-data:
+    driver: local
+
+networks:
+  monitoring-network:
+    driver: bridge

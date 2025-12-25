@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package monitor;
+
+// Represents metrics for a single process
+message ProcessMetrics {
+    int32 pid = 1;
+    uint64 cpu_ontime_ns = 2;
+    uint32 uid = 3;
+    string comm = 4;
+    uint64 read_bytes = 5;
+    uint64 write_bytes = 6;
+    uint64 net_rx_bytes = 7;
+    uint64 net_tx_bytes = 8;
+    uint64 avg_rss_bytes = 9;
+    string process_name = 10;
+    uint64 gpu_used_memory_mib = 11;
+}
+
+// Batch of process metrics from a single node
+message NodeMetricsReport {
+    string node_id = 1;
+    int64 timestamp = 2; // Unix timestamp in seconds
+    repeated ProcessMetrics processes = 3;
+    double collection_window_seconds = 4;
+}
+
+// gRPC service for metrics streaming
+service MetricsCollector {
+    // Unidirectional streaming from agent to server
+    rpc StreamMetrics(stream NodeMetricsReport) returns (StreamResponse);
+}
+
+// Simple response message
+message StreamResponse {
+    bool success = 1;
+    string message = 2;
+}

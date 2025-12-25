@@ -45,19 +45,3 @@ class RamCollector:
                     "avg_rss_bytes": v["sum"] // v["count"]
                 }
         return out
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("window", type=float, help="Window time (seconds)")
-    args = parser.parse_args()
-
-    collector = RamCollector(sample_interval_s=1.0)
-
-    try:
-        while True:
-            data = collector.collect_window(args.window)
-            for pid, info in data.items():
-                print(f"{pid} - avg={info['avg_rss_bytes']} bytes")
-            print("-" * 48)
-    except KeyboardInterrupt:
-        pass

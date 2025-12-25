@@ -78,23 +78,4 @@ class DiskCollector:
         self.io_by_pid.clear()
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("window", type=float, help="Window time (seconds)")
-    args = parser.parse_args()
-
-    collector = DiskCollector()
-
-    try:
-        while True:
-            collector.clear()
-            time.sleep(args.window)
-            data = collector.collect()
-            for pid, info in data.items():
-                print(f"{pid} - read={info['read_bytes']} bytes | write={info['write_bytes']} bytes")
-            print("-" * 48)
-    except KeyboardInterrupt:
-        pass
-
-
 
