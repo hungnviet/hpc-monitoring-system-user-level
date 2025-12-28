@@ -27,7 +27,14 @@ static __always_inline int add_net_bytes(u32 pid, u64 bytes, int is_tx) {
     return 1;
 }
 
-TRACEPOINT_PROBE(syscalls, sys_exit_sendto) {
+// Struct for syscall exit tracepoints
+struct syscall_exit_args {
+    u64 __unused__;
+    long __syscall_nr;
+    long ret;
+};
+
+int trace_sendto_exit(struct syscall_exit_args *args) {
     long ret = args->ret;
     if (ret <= 0) return 0;
     u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
@@ -35,7 +42,7 @@ TRACEPOINT_PROBE(syscalls, sys_exit_sendto) {
     return 0;
 }
 
-TRACEPOINT_PROBE(syscalls, sys_exit_sendmsg) {
+int trace_sendmsg_exit(struct syscall_exit_args *args) {
     long ret = args->ret;
     if (ret <= 0) return 0;
     u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
@@ -43,7 +50,7 @@ TRACEPOINT_PROBE(syscalls, sys_exit_sendmsg) {
     return 0;
 }
 
-TRACEPOINT_PROBE(syscalls, sys_exit_recvfrom) {
+int trace_recvfrom_exit(struct syscall_exit_args *args) {
     long ret = args->ret;
     if (ret <= 0) return 0;
     u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
@@ -51,7 +58,7 @@ TRACEPOINT_PROBE(syscalls, sys_exit_recvfrom) {
     return 0;
 }
 
-TRACEPOINT_PROBE(syscalls, sys_exit_recvmsg) {
+int trace_recvmsg_exit(struct syscall_exit_args *args) {
     long ret = args->ret;
     if (ret <= 0) return 0;
     u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
@@ -63,6 +70,10 @@ TRACEPOINT_PROBE(syscalls, sys_exit_recvmsg) {
 class NetCollector:
     def __init__(self):
         self.bpf = BPF(text=BPF_PROGRAM)
+        self.bpf.attach_tracepoint(tp="syscalls:sys_exit_sendto", fn_name="trace_sendto_exit")
+        self.bpf.attach_tracepoint(tp="syscalls:sys_exit_sendmsg", fn_name="trace_sendmsg_exit")
+        self.bpf.attach_tracepoint(tp="syscalls:sys_exit_recvfrom", fn_name="trace_recvfrom_exit")
+        self.bpf.attach_tracepoint(tp="syscalls:sys_exit_recvmsg", fn_name="trace_recvmsg_exit")
         self.net_io = self.bpf.get_table("net_io")
 
     def collect(self) -> Dict[int, Dict[str, int]]:

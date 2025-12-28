@@ -36,7 +36,19 @@ static __always_inline int add_cpu_ontime(u32 pid, u64 delta) {
     return 1;
 }
 
-TRACEPOINT_PROBE(sched, sched_switch) {
+// Struct definition for sched_switch tracepoint args
+struct sched_switch_args {
+    u64 __unused__;
+    char prev_comm[16];
+    int prev_pid;
+    int prev_prio;
+    long prev_state;
+    char next_comm[16];
+    int next_pid;
+    int next_prio;
+};
+
+int trace_sched_switch(struct sched_switch_args *args) {
     u32 cpu = bpf_get_smp_processor_id();
     u64 curTime = bpf_ktime_get_ns();
 
@@ -70,6 +82,7 @@ TRACEPOINT_PROBE(sched, sched_switch) {
 class CPUCollector:
     def __init__(self):
         self.bpf = BPF(text=BPF_PROGRAM)
+        self.bpf.attach_tracepoint(tp="sched:sched_switch", fn_name="trace_sched_switch")
         self.pid_info = self.bpf.get_table("pid_info")  
 
     def collect(self) -> Dict[int, Dict[str, Any]]:

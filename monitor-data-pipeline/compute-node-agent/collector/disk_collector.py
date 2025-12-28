@@ -26,7 +26,14 @@ static __always_inline int add_io(u32 pid, u64 bytes, int is_write) {
     return 1;
 }
 
-TRACEPOINT_PROBE(syscalls, sys_exit_read) {
+// Struct for syscall exit tracepoints
+struct syscall_exit_args {
+    u64 __unused__;
+    long __syscall_nr;
+    long ret;
+};
+
+int trace_read_exit(struct syscall_exit_args *args) {
     long ret = args->ret;
     if (ret <= 0) return 0;
     u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
@@ -34,7 +41,7 @@ TRACEPOINT_PROBE(syscalls, sys_exit_read) {
     return 0;
 }
 
-TRACEPOINT_PROBE(syscalls, sys_exit_pread64) {
+int trace_pread64_exit(struct syscall_exit_args *args) {
     long ret = args->ret;
     if (ret <= 0) return 0;
     u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
@@ -42,7 +49,7 @@ TRACEPOINT_PROBE(syscalls, sys_exit_pread64) {
     return 0;
 }
 
-TRACEPOINT_PROBE(syscalls, sys_exit_write) {
+int trace_write_exit(struct syscall_exit_args *args) {
     long ret = args->ret;
     if (ret <= 0) return 0;
     u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
@@ -50,7 +57,7 @@ TRACEPOINT_PROBE(syscalls, sys_exit_write) {
     return 0;
 }
 
-TRACEPOINT_PROBE(syscalls, sys_exit_pwrite64) {
+int trace_pwrite64_exit(struct syscall_exit_args *args) {
     long ret = args->ret;
     if (ret <= 0) return 0;
     u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
@@ -62,6 +69,10 @@ TRACEPOINT_PROBE(syscalls, sys_exit_pwrite64) {
 class DiskCollector:
     def __init__(self):
         self.bpf = BPF(text=BPF_PROGRAM)
+        self.bpf.attach_tracepoint(tp="syscalls:sys_exit_read", fn_name="trace_read_exit")
+        self.bpf.attach_tracepoint(tp="syscalls:sys_exit_pread64", fn_name="trace_pread64_exit")
+        self.bpf.attach_tracepoint(tp="syscalls:sys_exit_write", fn_name="trace_write_exit")
+        self.bpf.attach_tracepoint(tp="syscalls:sys_exit_pwrite64", fn_name="trace_pwrite64_exit")
         self.io_by_pid = self.bpf.get_table("io_by_pid")
 
     def collect(self) -> Dict[int, Dict[str, int]]:
