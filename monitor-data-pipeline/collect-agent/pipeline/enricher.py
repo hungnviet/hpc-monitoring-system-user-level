@@ -19,9 +19,9 @@ class MetricsEnricher(PipelineStage):
         batch.metadata['processing_stage'] = 'enriched'
         batch.metadata['collect_agent_version'] = '1.0.0'
 
-        for process in batch.processes:
-            process.metadata['enriched_at'] = batch.received_timestamp
-            process.metadata['collect_agent_id'] = self.collect_agent_id
+        # for process in batch.processes:
+        #     process.metadata['enriched_at'] = batch.received_timestamp
+        #     process.metadata['collect_agent_id'] = self.collect_agent_id
 
         return ProcessResult(
             valid_batches=[batch],
