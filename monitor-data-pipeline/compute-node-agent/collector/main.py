@@ -53,10 +53,10 @@ def merge(
         if r:
             obj["avg_rss_bytes"] = r.get("avg_rss_bytes", 0)
 
-        g = gpu.get(pid)
-        if g:
-            obj["process_name"] = g.get("process_name", "")
-            obj["gpu_used_memory_mib"] = g.get("used_memory_mib", 0)
+        #g = gpu.get(pid)
+        #if g:
+            #obj["process_name"] = g.get("process_name", "")
+            #obj["gpu_used_memory_mib"] = g.get("used_memory_mib", 0)
 
         merged[pid] = obj
 
@@ -100,7 +100,7 @@ class VirtualSensor:
         disk_data = self.disk_col.collect()
         net_data = self.net_col.collect()
         ram_data = ram_future.result()
-        gpu_data = self.gpu_col.collect()
+        #gpu_data = self.gpu_col.collect()
 
         # Debug logging to verify data collection
         logger.debug(f"CPU PIDs collected: {len(cpu_data)}, sample: {list(cpu_data.keys())[:5]}")
