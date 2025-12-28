@@ -78,7 +78,9 @@ class DiskCollector:
     def collect(self) -> Dict[int, Dict[str, int]]:
         out: Dict[int, Dict[str, int]] = {}
         for k, v in self.io_by_pid.items():
-            pid = int(k.value)
+            pid = k.value
+            if pid == 0:
+                continue
             out[pid] = {
                 "read_bytes": int(v.read_bytes),
                 "write_bytes": int(v.write_bytes),

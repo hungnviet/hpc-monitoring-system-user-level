@@ -79,7 +79,9 @@ class NetCollector:
     def collect(self) -> Dict[int, Dict[str, int]]:
         out: Dict[int, Dict[str, int]] = {}
         for k, v in self.net_io.items():
-            pid = int(k.value)
+            pid = k.value
+            if pid == 0:
+                continue
             out[pid] = {
                 "net_rx_bytes": int(v.rx_bytes),
                 "net_tx_bytes": int(v.tx_bytes),

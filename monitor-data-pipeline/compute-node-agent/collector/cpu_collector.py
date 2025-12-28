@@ -36,15 +36,16 @@ static __always_inline int add_cpu_ontime(u32 pid, u64 delta) {
     return 1;
 }
 
-// Struct definition for sched_switch tracepoint args
+// Use raw tracepoint args format - more portable across kernel versions
+// The format can be found at: /sys/kernel/debug/tracing/events/sched/sched_switch/format
 struct sched_switch_args {
-    u64 __unused__;
+    u64 __unused__;           // padding for common fields
     char prev_comm[16];
-    int prev_pid;
+    pid_t prev_pid;
     int prev_prio;
-    long prev_state;
+    long long prev_state;     // Use long long instead of long for 64-bit compatibility
     char next_comm[16];
-    int next_pid;
+    pid_t next_pid;
     int next_prio;
 };
 
@@ -58,22 +59,25 @@ int trace_sched_switch(struct sched_switch_args *args) {
     u64 prevTime = *tsp;
     last_ts.update(&cpu, &curTime);
 
+    // Get the previous PID that was running - use prev_pid, not next_pid
+    // prev_pid is the process that just ran and consumed CPU time
+    pid_t prev_pid = args->prev_pid;
+
     if (prevTime == 0) {
-        u32 next = args->next_pid;
-        cur_pid.update(&cpu, &next);
+        u32 pid = (u32)prev_pid;
+        cur_pid.update(&cpu, &pid);
         return 0;
     }
 
     u64 delta = curTime - prevTime;
 
-    u32 *pp = cur_pid.lookup(&cpu);
-    if (pp) {
-        u32 pid = *pp;
-        add_cpu_ontime(pid, delta);
+    // Account CPU time to the process that was previously running (prev_pid)
+    if (prev_pid > 0) {
+        add_cpu_ontime((u32)prev_pid, delta);
     }
 
-    u32 next_pid = args->next_pid;
-    cur_pid.update(&cpu, &next_pid);
+    u32 next = (u32)args->next_pid;
+    cur_pid.update(&cpu, &next);
     return 0;
 }
 """
@@ -88,7 +92,10 @@ class CPUCollector:
     def collect(self) -> Dict[int, Dict[str, Any]]:
         out: Dict[int, Dict[str, Any]] = {}
         for k, v in self.pid_info.items():
-            pid = int(k.value)
+            pid = k.value
+            # Skip PID 0 (swapper/idle) as it's not a user process
+            if pid == 0:
+                continue
             out[pid] = {
                 "cpu_ontime_ns": int(v.cpu_ontime_ns),
                 "uid": int(v.uid),

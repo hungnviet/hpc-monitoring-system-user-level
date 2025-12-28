@@ -1,4 +1,5 @@
 import time
+import logging
 from typing import Dict, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
@@ -10,6 +11,8 @@ from .gpu_process_collector import GPUComputeMemCollector
 from .system_cpu_collector import SystemCPUCollector
 from .system_memory_collector import SystemMemoryCollector
 from .gpu_system_collector import GPUSystemCollector
+
+logger = logging.getLogger(__name__)
 
 
 def merge(
@@ -103,6 +106,12 @@ class VirtualSensor:
         net_data = self.net_col.collect()
         ram_data = ram_future.result()
         gpu_data = self.gpu_col.collect()
+
+        # Debug logging to verify data collection
+        logger.debug(f"CPU PIDs collected: {len(cpu_data)}, sample: {list(cpu_data.keys())[:5]}")
+        logger.debug(f"Disk PIDs collected: {len(disk_data)}, sample: {list(disk_data.keys())[:5]}")
+        logger.debug(f"Net PIDs collected: {len(net_data)}, sample: {list(net_data.keys())[:5]}")
+        logger.debug(f"RAM PIDs collected: {len(ram_data)}, sample: {list(ram_data.keys())[:5]}")
 
         process_metrics = merge(cpu_data, disk_data, net_data, ram_data, gpu_data)
 
