@@ -1,0 +1,4 @@
+{
+    "collect_agent_id":"collect_agent_1",
+    "etcd_endpoint":"http://192.168.1.37:2379"
+}

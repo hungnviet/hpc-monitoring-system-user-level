@@ -7,3 +7,5 @@ MonitoringData : {
 }
 
 All the common configuration for communication between each module will be placed in infra.json.
+
+sed -i 's/^    /\t/' Makefile

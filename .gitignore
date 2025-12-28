@@ -1,0 +1,139 @@
+########################################
+# Environment / secrets
+########################################
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+secrets/
+config.local.*
+*.local
+
+########################################
+# Generic build artifacts
+########################################
+*.o
+*.a
+*.so
+*.out
+*.obj
+*.lo
+*.la
+*.d
+*.dSYM/
+
+########################################
+# Common build dirs (C/C++)
+########################################
+build/
+_build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+bin/
+dist/
+out/
+*.exe
+
+########################################
+# eBPF generated artifacts
+########################################
+*.bpf.o
+*.skel.h
+vmlinux.h
+bpftool/
+*.ll
+*.bc
+
+########################################
+# Local binaries
+########################################
+compute_node_monitor
+
+########################################
+# Docker / local dev
+########################################
+Dockerfile
+docker-compose.override.yml
+
+########################################
+# Editor / IDE noise
+########################################
+.idea/
+.vscode/
+*.iml
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+########################################
+# Logs
+########################################
+*.log
+
+########################################
+# Dependencies / vendor (if used)
+########################################
+.deps/
+.libs/
+lib/
+vendor/
+
+########################################
+# gRPC / Protobuf generated files
+# (C++ + common generated outputs)
+########################################
+*.pb.h
+*.pb.cc
+*.grpc.pb.h
+*.grpc.pb.cc
+*_pb2.py
+*_pb2_grpc.py
+*.pb.go
+*.pb.gw.go
+*.pb.swift
+*.pb.m
+*.pb.mm
+*.pb.rs
+
+########################################
+# Python
+########################################
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+*.egg
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# mypy / type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# Jupyter
+.ipynb_checkpoints/

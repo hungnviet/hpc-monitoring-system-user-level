@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package monitor;
+
+// Represents metrics for a single process
+message ProcessMetrics {
+    int32 pid = 1;
+    uint64 cpu_ontime_ns = 2;
+    uint32 uid = 3;
+    string comm = 4;
+    uint64 read_bytes = 5;
+    uint64 write_bytes = 6;
+    uint64 net_rx_bytes = 7;
+    uint64 net_tx_bytes = 8;
+    uint64 avg_rss_bytes = 9;
+    string process_name = 10;
+    uint64 gpu_used_memory_mib = 11;
+}
+
+// Per-GPU metrics for multi-GPU support
+message GPUMetrics {
+    uint32 gpu_index = 1;           // GPU index (0, 1, 2, ...)
+    string gpu_name = 2;            // GPU model name (e.g., "NVIDIA RTX 3090")
+    double utilization_percent = 3; // GPU compute utilization (0-100)
+    double temperature_celsius = 4; // GPU temperature in Celsius
+    double power_watts = 5;         // Current power consumption in watts
+    double power_limit_watts = 6;   // Power limit in watts
+    uint64 memory_used_mib = 7;     // GPU memory used in MiB
+    uint64 memory_total_mib = 8;    // Total GPU memory in MiB
+}
+
+// Node-level system metrics (not per-process)
+message NodeSystemMetrics {
+    double cpu_usage_percent = 1;      // Overall CPU usage (0-100)
+    double memory_usage_percent = 2;   // Overall memory usage (0-100)
+    uint64 memory_used_bytes = 3;      // Memory used in bytes
+    uint64 memory_total_bytes = 4;     // Total memory in bytes
+    repeated GPUMetrics gpus = 5;      // Per-GPU metrics (supports multiple GPUs)
+}
+
+// Batch of process metrics from a single node
+message NodeMetricsReport {
+    string node_id = 1;
+    int64 timestamp = 2; // Unix timestamp in seconds
+    repeated ProcessMetrics processes = 3;
+    double collection_window_seconds = 4;
+    NodeSystemMetrics system_metrics = 5; // Node-level system metrics
+}
+
+// gRPC service for metrics streaming
+service MetricsCollector {
+    // Unidirectional streaming from agent to server
+    rpc StreamMetrics(stream NodeMetricsReport) returns (StreamResponse);
+}
+
+// Simple response message
+message StreamResponse {
+    bool success = 1;
+    string message = 2;
+}
