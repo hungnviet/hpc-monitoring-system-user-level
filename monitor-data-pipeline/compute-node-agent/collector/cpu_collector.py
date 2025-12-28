@@ -36,22 +36,15 @@ static __always_inline int add_cpu_ontime(u32 pid, u64 delta) {
     return 1;
 }
 
-// Use raw tracepoint args format - more portable across kernel versions
-// The format can be found at: /sys/kernel/debug/tracing/events/sched/sched_switch/format
-struct sched_switch_args {
-    u64 __unused__;           // padding for common fields
-    char prev_comm[16];
-    pid_t prev_pid;
-    int prev_prio;
-    long long prev_state;     // Use long long instead of long for 64-bit compatibility
-    char next_comm[16];
-    pid_t next_pid;
-    int next_prio;
-};
-
-int trace_sched_switch(struct sched_switch_args *args) {
+// Use TRACEPOINT_PROBE macro for better compatibility
+// This is called on context switch - the "prev" task is being switched out
+TRACEPOINT_PROBE(sched, sched_switch) {
     u32 cpu = bpf_get_smp_processor_id();
     u64 curTime = bpf_ktime_get_ns();
+
+    // Get PID using bpf_get_current_pid_tgid() - this is the PREV task
+    // Upper 32 bits = PID (tgid), Lower 32 bits = TID
+    u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
 
     u64 *tsp = last_ts.lookup(&cpu);
     if (!tsp) return 0;
@@ -59,25 +52,20 @@ int trace_sched_switch(struct sched_switch_args *args) {
     u64 prevTime = *tsp;
     last_ts.update(&cpu, &curTime);
 
-    // Get the previous PID that was running - use prev_pid, not next_pid
-    // prev_pid is the process that just ran and consumed CPU time
-    pid_t prev_pid = args->prev_pid;
-
     if (prevTime == 0) {
-        u32 pid = (u32)prev_pid;
         cur_pid.update(&cpu, &pid);
         return 0;
     }
 
     u64 delta = curTime - prevTime;
 
-    // Account CPU time to the process that was previously running (prev_pid)
-    if (prev_pid > 0) {
-        add_cpu_ontime((u32)prev_pid, delta);
+    // Account CPU time to the process that was previously running
+    u32 *prev_p = cur_pid.lookup(&cpu);
+    if (prev_p && *prev_p > 0) {
+        add_cpu_ontime(*prev_p, delta);
     }
 
-    u32 next = (u32)args->next_pid;
-    cur_pid.update(&cpu, &next);
+    cur_pid.update(&cpu, &pid);
     return 0;
 }
 """
@@ -86,7 +74,7 @@ int trace_sched_switch(struct sched_switch_args *args) {
 class CPUCollector:
     def __init__(self):
         self.bpf = BPF(text=BPF_PROGRAM)
-        self.bpf.attach_tracepoint(tp="sched:sched_switch", fn_name="trace_sched_switch")
+        # TRACEPOINT_PROBE auto-attaches, no need for manual attach
         self.pid_info = self.bpf.get_table("pid_info")  
 
     def collect(self) -> Dict[int, Dict[str, Any]]:
