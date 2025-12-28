@@ -4,11 +4,6 @@ import logging
 from typing import Dict, Any, Optional
 from queue import Queue, Empty
 from threading import Thread, Event
-import sys
-from pathlib import Path
-
-# Add parent directory to path to import proto
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from proto import metrics_pb2, metrics_pb2_grpc
 

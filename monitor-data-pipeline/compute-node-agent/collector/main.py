@@ -2,14 +2,14 @@ import time
 from typing import Dict, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
-from cpu_collector import CPUCollector
-from disk_collector import DiskCollector
-from network_collector import NetCollector
-from ram_collector import RamCollector
-from gpu_process_collector import GPUComputeMemCollector
-from system_cpu_collector import SystemCPUCollector
-from system_memory_collector import SystemMemoryCollector
-from gpu_system_collector import GPUSystemCollector
+from .cpu_collector import CPUCollector
+from .disk_collector import DiskCollector
+from .network_collector import NetCollector
+from .ram_collector import RamCollector
+from .gpu_process_collector import GPUComputeMemCollector
+from .system_cpu_collector import SystemCPUCollector
+from .system_memory_collector import SystemMemoryCollector
+from .gpu_system_collector import GPUSystemCollector
 
 
 def merge(
