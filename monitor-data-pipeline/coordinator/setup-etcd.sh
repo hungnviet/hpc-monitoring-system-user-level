@@ -13,15 +13,16 @@ usage() {
     echo "  --window SECONDS         Collection window (default: 5.0)"
     echo "  --heartbeat SECONDS      Heartbeat interval (default: 10.0)"
     echo ""
-    echo "  --collect-agent ID       Configure collect agent"
+    echo "  --collect-agent ID       Configure collect agent (default: collect_agent_1)"
     echo "  --kafka BROKERS          Kafka brokers (default: localhost:9092)"
     echo "  --topic TOPIC            Kafka topic (default: metrics)"
     echo "  --port PORT              gRPC port (default: 50051)"
     echo ""
     echo "Examples:"
+    echo "  $0                       # Setup both node_id_1 and collect_agent_1 with defaults"
     echo "  $0 --node node_1 --grpc 192.168.1.100:50051"
     echo "  $0 --collect-agent collect_agent_1 --kafka 192.168.1.100:9092"
-    echo "  $0  # Configure default node_id_1 with localhost:50051"
+    echo "  $0 --node node_1 --collect-agent agent_1 --grpc 10.0.0.5:50051 --kafka 10.0.0.10:9092"
 }
 
 # Default values
@@ -82,9 +83,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Default to node configuration if nothing specified
+# Default to both node and collect-agent configuration if nothing specified
 if [[ -z "$NODE_ID" && -z "$COLLECT_AGENT_ID" ]]; then
     NODE_ID="node_id_1"
+    COLLECT_AGENT_ID="collect_agent_1"
 fi
 
 # Wait for etcd to be ready

@@ -4,12 +4,12 @@
 bcc>=0.18.0
 
 # gRPC for streaming metrics to server
-grpcio>=1.50.0
-grpcio-tools>=1.50.0
-protobuf>=4.21.0
+grpcio>=1.60.0,<1.62.0
+grpcio-tools>=1.60.0,<1.62.0
+protobuf>=4.21.6,<5.0.0
 
-# etcd client for configuration and heartbeat
-etcd3>=0.12.0
+# etcd client for configuration and heartbeat (use etcd3-py fork for protobuf 4.x compatibility)
+etcd3-py>=0.1.6
 
 # GPU monitoring (NVIDIA)
 pynvml>=11.4.1

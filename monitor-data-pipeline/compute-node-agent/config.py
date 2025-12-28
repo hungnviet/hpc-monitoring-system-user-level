@@ -1,6 +1,7 @@
 import json
 import time
-import etcd3
+from etcd3 import Client as Etcd3Client
+from etcd3.models import Event as EtcdEvent
 from pathlib import Path
 from threading import Thread, Event
 from typing import Optional, Any, Callable
@@ -31,7 +32,7 @@ class ConfigurationManager:
     def __init__(self):
         if not hasattr(self, '_initialized'):
             self._config: Optional[ComputeNodeConfig] = None
-            self._etcd_client: Optional[etcd3.Etcd3Client] = None
+            self._etcd_client: Optional[Etcd3Client] = None
             self._stop_event = Event()
             self._collection_enabled = Event()
             self._heartbeat_thread: Optional[Thread] = None
@@ -73,7 +74,7 @@ class ConfigurationManager:
         for attempt in range(1, max_retries + 1):
             try:
                 logger.info(f"Connecting to etcd at {host}:{port} (attempt {attempt}/{max_retries})")
-                self._etcd_client = etcd3.client(host=host, port=port)
+                self._etcd_client = Etcd3Client(host=host, port=port)
                 self._etcd_client.status()
                 logger.info("Connected to etcd successfully")
                 return
@@ -188,7 +189,7 @@ class ConfigurationManager:
                 if self._stop_event.is_set():
                     break
 
-                if isinstance(event, etcd3.events.PutEvent):
+                if hasattr(event, 'value'):
                     new_status = event.value.decode('utf-8') if event.value else ""
                     logger.info(f"Status changed to: {new_status}")
 

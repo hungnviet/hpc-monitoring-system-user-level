@@ -1,5 +1,5 @@
 import json
-import etcd3
+from etcd3 import Client as Etcd3Client
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
@@ -50,7 +50,7 @@ class ConfigurationManager:
     def __init__(self):
         if not hasattr(self, '_initialized'):
             self._config: Optional[CollectAgentConfig] = None
-            self._etcd_client: Optional[etcd3.Etcd3Client] = None
+            self._etcd_client: Optional[Etcd3Client] = None
             self._initialized = True
 
     def load(self, infra_path: str = "infra.json") -> CollectAgentConfig:
@@ -85,7 +85,7 @@ class ConfigurationManager:
         port = int(parts[1]) if len(parts) > 1 else 2379
 
         logger.info(f"Connecting to etcd at {host}:{port}")
-        self._etcd_client = etcd3.client(host=host, port=port)
+        self._etcd_client = Etcd3Client(host=host, port=port)
         self._etcd_client.status()
         logger.info("Connected to etcd successfully")
 
