@@ -171,7 +171,11 @@ class ConfigurationManager:
         status_key = f"/config/compute_node/{self._config.node_id}/status"
         logger.info(f"Watching status key: {status_key}")
 
-        status = self._get_etcd_value(status_key) or "stopped"
+        status = self._get_etcd_value(status_key)
+        logger.info(f"Read initial status value: '{status}'")
+        if status is None:
+            status = "stopped"
+        status = status.strip()
         if status == "running":
             self._collection_enabled.set()
             logger.info("Initial status: collection ENABLED")
