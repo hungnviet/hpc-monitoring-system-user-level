@@ -1,11 +1,6 @@
-GENERAL INFORMATION ABOUT THE SYSTEM
+MONITORING SYSTEM 
 
-The object MonitoringData will go through the data pipeline
-MonitoringData : {
-    time:...
-    data: Object ==> that will be modify at each phase 
-}
+COMPUTE NODE AGENT  ==> COLLECT AGENT ==> MESSAGE BROKER ==> DATA SERVER => STORAGE => MAINSERVER ==> WEB APPLICATION
 
-All the common configuration for communication between each module will be placed in infra.json.
+=====================================================COORDINATOR========================================================
 
-sed -i 's/^    /\t/' Makefile
