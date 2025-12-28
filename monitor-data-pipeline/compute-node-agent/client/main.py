@@ -81,11 +81,12 @@ class MetricsStreamClient:
             logger.error(f"Streaming error: {e}")
 
     def send_metrics(self,
-                    data: Dict[int, Dict[str, Any]],
+                    process_data: Dict[int, Dict[str, Any]],
+                    system_data: Dict[str, Any],
                     node_id: str,
                     collection_window: float) -> bool:
         try:
-            report = self._dict_to_protobuf(data, node_id, collection_window)
+            report = self._dict_to_protobuf(process_data, system_data, node_id, collection_window)
 
             if self.message_queue.full():
                 logger.warning("Message queue is full, dropping oldest message")
@@ -95,7 +96,7 @@ class MetricsStreamClient:
                     pass
 
             self.message_queue.put(report)
-            logger.debug(f"Queued metrics report with {len(data)} processes")
+            logger.debug(f"Queued metrics report with {len(process_data)} processes")
             return True
 
         except Exception as e:
@@ -103,7 +104,8 @@ class MetricsStreamClient:
             return False
 
     def _dict_to_protobuf(self,
-                         data: Dict[int, Dict[str, Any]],
+                         process_data: Dict[int, Dict[str, Any]],
+                         system_data: Dict[str, Any],
                          node_id: str,
                          collection_window: float) -> metrics_pb2.NodeMetricsReport:
 
@@ -112,7 +114,8 @@ class MetricsStreamClient:
         report.timestamp = int(time.time())
         report.collection_window_seconds = collection_window
 
-        for pid, metrics in data.items():
+        # Per-process metrics
+        for pid, metrics in process_data.items():
             process = report.processes.add()
             process.pid = pid
             process.cpu_ontime_ns = metrics.get("cpu_ontime_ns", 0)
@@ -125,6 +128,24 @@ class MetricsStreamClient:
             process.avg_rss_bytes = metrics.get("avg_rss_bytes", 0)
             process.process_name = metrics.get("process_name", "")
             process.gpu_used_memory_mib = metrics.get("gpu_used_memory_mib", 0)
+
+        # System-level metrics
+        sys_metrics = report.system_metrics
+        sys_metrics.cpu_usage_percent = system_data.get("cpu_usage_percent", 0.0)
+        sys_metrics.memory_usage_percent = system_data.get("memory_usage_percent", 0.0)
+        sys_metrics.memory_used_bytes = system_data.get("memory_used_bytes", 0)
+        sys_metrics.memory_total_bytes = system_data.get("memory_total_bytes", 0)
+
+        for gpu in system_data.get("gpus", []):
+            gpu_msg = sys_metrics.gpus.add()
+            gpu_msg.gpu_index = gpu.get("gpu_index", 0)
+            gpu_msg.gpu_name = gpu.get("gpu_name", "")
+            gpu_msg.utilization_percent = gpu.get("utilization_percent", 0.0)
+            gpu_msg.temperature_celsius = gpu.get("temperature_celsius", 0.0)
+            gpu_msg.power_watts = gpu.get("power_watts", 0.0)
+            gpu_msg.power_limit_watts = gpu.get("power_limit_watts", 0.0)
+            gpu_msg.memory_used_mib = gpu.get("memory_used_mib", 0)
+            gpu_msg.memory_total_mib = gpu.get("memory_total_mib", 0)
 
         return report
 

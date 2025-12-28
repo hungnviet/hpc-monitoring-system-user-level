@@ -1,5 +1,5 @@
 from pipeline.base import PipelineStage
-from models import MetricBatch, ProcessResult, ProcessStatus
+from models import MetricBatch, ProcessResult, ProcessStatus, NodeSystemMetric
 from utils import get_logger
 
 
@@ -28,6 +28,12 @@ class SchemaValidator(PipelineStage):
                 invalid_count=len(batch.processes),
                 alerts_triggered=0
             )
+
+        # Validate system metrics if present
+        if batch.system_metrics:
+            if not self._validate_system_metrics(batch.system_metrics):
+                logger.warning(f"Invalid system metrics from {batch.node_id}, setting to None")
+                batch.system_metrics = None
 
         for process in batch.processes:
             if self._validate_process(process):
@@ -60,6 +66,34 @@ class SchemaValidator(PipelineStage):
                 return False
             if not process.comm or len(process.comm) == 0:
                 return False
+            return True
+        except AttributeError:
+            return False
+
+    def _validate_system_metrics(self, sm: NodeSystemMetric) -> bool:
+        """Validate system metrics ranges."""
+        try:
+            # CPU usage: 0-100%
+            if not (0 <= sm.cpu_usage_percent <= 100):
+                return False
+            # Memory usage: 0-100%
+            if not (0 <= sm.memory_usage_percent <= 100):
+                return False
+            # Memory bytes: non-negative
+            if sm.memory_used_bytes < 0 or sm.memory_total_bytes < 0:
+                return False
+
+            # GPU validation
+            for gpu in sm.gpus:
+                if not (0 <= gpu.utilization_percent <= 100):
+                    return False
+                # Temperature: reasonable range (-50 to 200 Celsius)
+                if gpu.temperature_celsius < -50 or gpu.temperature_celsius > 200:
+                    return False
+                # Power: non-negative
+                if gpu.power_watts < 0:
+                    return False
+
             return True
         except AttributeError:
             return False

@@ -1,3 +1,3 @@
-from .metrics import MetricBatch, ProcessResult
+from .metrics import MetricBatch, ProcessResult, ProcessMetric, GPUMetric, NodeSystemMetric, ProcessStatus
 
-__all__ = ['MetricBatch', 'ProcessResult']
+__all__ = ['MetricBatch', 'ProcessResult', 'ProcessMetric', 'GPUMetric', 'NodeSystemMetric', 'ProcessStatus']

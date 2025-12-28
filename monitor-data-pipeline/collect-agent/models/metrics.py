@@ -29,12 +29,36 @@ class ProcessMetric:
 
 
 @dataclass
+class GPUMetric:
+    """Per-GPU metrics for multi-GPU support."""
+    gpu_index: int
+    gpu_name: str
+    utilization_percent: float
+    temperature_celsius: float
+    power_watts: float
+    power_limit_watts: float
+    memory_used_mib: int
+    memory_total_mib: int
+
+
+@dataclass
+class NodeSystemMetric:
+    """Node-level system metrics (not per-process)."""
+    cpu_usage_percent: float
+    memory_usage_percent: float
+    memory_used_bytes: int
+    memory_total_bytes: int
+    gpus: List[GPUMetric] = field(default_factory=list)
+
+
+@dataclass
 class MetricBatch:
     node_id: str
     timestamp: int
     collection_window_seconds: float
     processes: List[ProcessMetric]
 
+    system_metrics: Optional[NodeSystemMetric] = None
     collect_agent_id: Optional[str] = None
     received_timestamp: Optional[int] = None
     metadata: Dict[str, Any] = field(default_factory=dict)

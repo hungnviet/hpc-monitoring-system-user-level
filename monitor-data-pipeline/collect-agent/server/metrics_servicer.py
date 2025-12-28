@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from proto import metrics_pb2, metrics_pb2_grpc
-from models import MetricBatch, ProcessMetric
+from models import MetricBatch, ProcessMetric, GPUMetric, NodeSystemMetric
 from pipeline import MetricsPipeline
 from publisher import KafkaPublisher
 from utils import get_logger
@@ -89,9 +89,35 @@ class MetricsCollectorServicer(metrics_pb2_grpc.MetricsCollectorServicer):
             for p in proto_report.processes
         ]
 
+        # Parse system metrics if present
+        system_metrics = None
+        if proto_report.HasField('system_metrics'):
+            sm = proto_report.system_metrics
+            gpus = [
+                GPUMetric(
+                    gpu_index=g.gpu_index,
+                    gpu_name=g.gpu_name,
+                    utilization_percent=g.utilization_percent,
+                    temperature_celsius=g.temperature_celsius,
+                    power_watts=g.power_watts,
+                    power_limit_watts=g.power_limit_watts,
+                    memory_used_mib=g.memory_used_mib,
+                    memory_total_mib=g.memory_total_mib
+                )
+                for g in sm.gpus
+            ]
+            system_metrics = NodeSystemMetric(
+                cpu_usage_percent=sm.cpu_usage_percent,
+                memory_usage_percent=sm.memory_usage_percent,
+                memory_used_bytes=sm.memory_used_bytes,
+                memory_total_bytes=sm.memory_total_bytes,
+                gpus=gpus
+            )
+
         return MetricBatch(
             node_id=proto_report.node_id,
             timestamp=proto_report.timestamp,
             collection_window_seconds=proto_report.collection_window_seconds,
-            processes=processes
+            processes=processes,
+            system_metrics=system_metrics
         )

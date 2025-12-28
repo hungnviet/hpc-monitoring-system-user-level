@@ -59,7 +59,7 @@ class KafkaPublisher(Publisher):
                 logger.error(f"Error publishing batch to Kafka: {e}")
 
     def _serialize_batch(self, batch: MetricBatch) -> dict:
-        return {
+        result = {
             'node_id': batch.node_id,
             'timestamp': batch.timestamp,
             'collection_window_seconds': batch.collection_window_seconds,
@@ -84,6 +84,31 @@ class KafkaPublisher(Publisher):
                 for p in batch.processes
             ]
         }
+
+        # Include system metrics if present
+        if batch.system_metrics:
+            sm = batch.system_metrics
+            result['system_metrics'] = {
+                'cpu_usage_percent': sm.cpu_usage_percent,
+                'memory_usage_percent': sm.memory_usage_percent,
+                'memory_used_bytes': sm.memory_used_bytes,
+                'memory_total_bytes': sm.memory_total_bytes,
+                'gpus': [
+                    {
+                        'gpu_index': g.gpu_index,
+                        'gpu_name': g.gpu_name,
+                        'utilization_percent': g.utilization_percent,
+                        'temperature_celsius': g.temperature_celsius,
+                        'power_watts': g.power_watts,
+                        'power_limit_watts': g.power_limit_watts,
+                        'memory_used_mib': g.memory_used_mib,
+                        'memory_total_mib': g.memory_total_mib
+                    }
+                    for g in sm.gpus
+                ]
+            }
+
+        return result
 
     async def close(self):
         if self.producer:

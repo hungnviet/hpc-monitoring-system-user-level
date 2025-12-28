@@ -205,17 +205,23 @@ class ComputeNodeAgent:
 
             try:
                 start_time = time.time()
-                metrics_data = self.sensor.collect(self.collection_window)
+                process_metrics, system_metrics = self.sensor.collect(self.collection_window)
 
                 if self.grpc_client:
                     success = self.grpc_client.send_metrics(
-                        data=metrics_data,
+                        process_data=process_metrics,
+                        system_data=system_metrics,
                         node_id=self.node_id,
                         collection_window=self.collection_window
                     )
 
                     if success:
-                        logger.info("Metrics sent successfully")
+                        gpu_count = len(system_metrics.get("gpus", []))
+                        logger.info(
+                            f"Metrics sent: CPU={system_metrics.get('cpu_usage_percent', 0):.1f}%, "
+                            f"MEM={system_metrics.get('memory_usage_percent', 0):.1f}%, "
+                            f"GPUs={gpu_count}, Processes={len(process_metrics)}"
+                        )
                     else:
                         logger.warning("Failed to send metrics")
 
