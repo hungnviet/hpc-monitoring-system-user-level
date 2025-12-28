@@ -15,6 +15,8 @@ python3 -m grpc_tools.protoc \
     --python_out=. \
     --grpc_python_out=. \
     metrics.proto
+    
+sed -i 's/^import metrics_pb2/from . import metrics_pb2/' metrics_pb2_grpc.py
 
 echo "Generated proto files in compute-node-agent/proto/:"
 echo "  - metrics_pb2.py"

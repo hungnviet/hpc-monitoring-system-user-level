@@ -1,4 +1,4 @@
 {
     "node_id": "node_id_1",
-    "etcd_endpoint": "http://localhost:2379"
+    "etcd_endpoint":"http://192.168.1.37:2379"
 }

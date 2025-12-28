@@ -1,7 +1,10 @@
 # Compute Node Agent Requirements
 
 # BPF/eBPF for system metrics collection
-bcc>=0.18.0
+# NOTE: BCC must be installed as a system package, not via pip:
+#   Ubuntu/Debian: sudo apt-get install python3-bpfcc bpfcc-tools
+#   CentOS/RHEL:   sudo yum install python3-bcc bcc-tools
+#   Fedora:        sudo dnf install python3-bcc bcc-tools
 
 # gRPC for streaming metrics to server
 grpcio>=1.60.0,<1.62.0

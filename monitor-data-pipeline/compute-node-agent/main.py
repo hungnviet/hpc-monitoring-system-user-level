@@ -1,15 +1,9 @@
 import signal
-import sys
 import time
-from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent / "collector"))
-from main import VirtualSensor
-
-sys.path.insert(0, str(Path(__file__).parent / "client"))
-from main import MetricsStreamClient
-
+from collector import VirtualSensor
+from client import MetricsStreamClient
 from config import ConfigurationManager
 from utils import get_logger
 
