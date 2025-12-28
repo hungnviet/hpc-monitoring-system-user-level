@@ -25,12 +25,28 @@ fi
 
 # Create venv with system site-packages (for BCC access)
 echo "Creating virtual environment with system site-packages..."
-python3 -m venv  --system-site-packages .venv
+python3 -m venv --system-site-packages .venv
 
 # Install dependencies into the venv
 echo "Installing Python dependencies..."
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install --ignore-installed grpcio grpcio-tools protobuf etcd3-py pynvml typing-extensions
+
+# Generate proto files
+echo "Generating protobuf files..."
+cd "$SCRIPT_DIR/grpc_proto"
+"$SCRIPT_DIR/.venv/bin/python" -m grpc_tools.protoc \
+    -I. \
+    --python_out=. \
+    --grpc_python_out=. \
+    metrics.proto
+
+# Fix imports in generated files to use relative imports
+sed -i 's/^import metrics_pb2/from . import metrics_pb2/' metrics_pb2_grpc.py
+
+echo "[OK] Proto files generated"
+
+cd "$SCRIPT_DIR"
 
 echo ""
 echo "=== Setup Complete ==="

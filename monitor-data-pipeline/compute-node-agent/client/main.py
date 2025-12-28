@@ -5,8 +5,8 @@ from typing import Dict, Any, Optional
 from queue import Queue, Empty
 from threading import Thread, Event
 
-from proto import metrics_pb2
-from proto import metrics_pb2_grpc
+from grpc_proto import metrics_pb2
+from grpc_proto import metrics_pb2_grpc
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
