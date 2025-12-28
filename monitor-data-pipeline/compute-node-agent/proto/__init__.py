@@ -1,4 +1,1 @@
-from . import metrics_pb2
-from . import metrics_pb2_grpc
-
-__all__ = ['metrics_pb2', 'metrics_pb2_grpc']
+# Empty init - import directly from proto.metrics_pb2 and proto.metrics_pb2_grpc
