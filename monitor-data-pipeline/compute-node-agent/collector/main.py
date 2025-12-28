@@ -67,12 +67,12 @@ class VirtualSensor:
         self.disk_col = DiskCollector()
         self.net_col = NetCollector()
         self.ram_col = RamCollector(sample_interval_s=ram_sample_interval_s)
-        self.gpu_col = GPUComputeMemCollector()
+        #self.gpu_col = GPUComputeMemCollector()
 
         # System-level collectors
         self.sys_cpu_col = SystemCPUCollector()
         self.sys_mem_col = SystemMemoryCollector()
-        self.gpu_sys_col = GPUSystemCollector()
+        #self.gpu_sys_col = GPUSystemCollector()
 
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
 
@@ -80,18 +80,13 @@ class VirtualSensor:
         self._executor.shutdown(wait=False)
 
     def collect(self, window: float) -> Tuple[Dict[int, Dict[str, Any]], Dict[str, Any]]:
-        """
-        Collect both per-process metrics and system metrics.
-
-        Returns:
-            Tuple of (process_metrics_dict, system_metrics_dict)
-        """
         # Start CPU baseline measurement at beginning of window
         self.sys_cpu_col.collect()
 
         self.cpu_col.clear()
         self.disk_col.clear()
         self.net_col.clear()
+        #self.gpu_col.clear()
 
         ram_future = self._executor.submit(self.ram_col.collect_window, window)
 
@@ -102,21 +97,21 @@ class VirtualSensor:
         disk_data = self.disk_col.collect()
         net_data = self.net_col.collect()
         ram_data = ram_future.result()
-        gpu_data = self.gpu_col.collect()
+        #gpu_data = self.gpu_col.collect()
 
-        process_metrics = merge(cpu_data, disk_data, net_data, ram_data, gpu_data)
+        process_metrics = merge(cpu_data, disk_data, net_data, ram_data, {})
 
         # Collect system-level metrics (at end of window for CPU delta)
         sys_cpu = self.sys_cpu_col.collect()
         sys_mem = self.sys_mem_col.collect()
-        sys_gpu = self.gpu_sys_col.collect()
+        #sys_gpu = self.gpu_sys_col.collect()
 
         system_metrics = {
             "cpu_usage_percent": sys_cpu.get("cpu_usage_percent", 0.0),
             "memory_usage_percent": sys_mem.get("memory_usage_percent", 0.0),
             "memory_used_bytes": sys_mem.get("memory_used_bytes", 0),
             "memory_total_bytes": sys_mem.get("memory_total_bytes", 0),
-            "gpus": sys_gpu.get("gpus", [])
+            "gpus": [],
         }
 
         return process_metrics, system_metrics
