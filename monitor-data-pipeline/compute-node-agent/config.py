@@ -1,7 +1,6 @@
 import json
 import time
 from etcd3 import Client as Etcd3Client
-from etcd3.models import Event as EtcdEvent
 from pathlib import Path
 from threading import Thread, Event
 from typing import Optional, Any, Callable
