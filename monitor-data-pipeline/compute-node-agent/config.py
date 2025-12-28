@@ -182,15 +182,17 @@ class ConfigurationManager:
         if self._status_callback:
             self._status_callback(self._collection_enabled.is_set())
 
-        events_iterator, cancel = self._etcd_client.watch(status_key)
-
+        # etcd3-py uses watch_create() with key as bytes
         try:
-            for event in events_iterator:
+            watcher = self._etcd_client.watch_create(key=status_key.encode('utf-8'))
+
+            for event in watcher:
                 if self._stop_event.is_set():
                     break
 
-                if hasattr(event, 'value'):
-                    new_status = event.value.decode('utf-8') if event.value else ""
+                # etcd3-py events have 'kv' attribute with the key-value pair
+                if hasattr(event, 'kv') and event.kv:
+                    new_status = event.kv.value.decode('utf-8') if event.kv.value else ""
                     logger.info(f"Status changed to: {new_status}")
 
                     if new_status == "running":
@@ -205,8 +207,6 @@ class ConfigurationManager:
 
         except Exception as e:
             logger.error(f"Error in status watch loop: {e}")
-        finally:
-            cancel()
 
     def shutdown(self):
         logger.info("Shutting down configuration manager...")
