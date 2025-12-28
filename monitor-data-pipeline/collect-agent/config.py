@@ -133,9 +133,10 @@ class ConfigurationManager:
 
     def _get_etcd_value(self, key: str) -> Optional[str]:
         try:
-            value, _ = self._etcd_client.get(key)
-            if value:
-                return value.decode('utf-8')
+            # etcd3-py uses range() method instead of get()
+            result = self._etcd_client.range(key)
+            if result.kvs and len(result.kvs) > 0:
+                return result.kvs[0].value.decode('utf-8')
         except Exception as e:
             logger.warning(f"Failed to get key '{key}': {e}")
         return None

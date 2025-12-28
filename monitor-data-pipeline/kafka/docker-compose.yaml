@@ -6,6 +6,7 @@ services:
     ports:
       - "9092:9092"
       - "9093:9093"
+      - "29092:29092"  # External access for clients outside Docker
     environment:
       # KRaft mode configuration (no Zookeeper)
       KAFKA_NODE_ID: 1
@@ -14,8 +15,11 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
 
       # Listeners configuration
+      # PLAINTEXT: internal Docker communication (kafka-ui, inter-broker)
+      # PLAINTEXT_HOST: external access from other machines
+      # NOTE: Replace 192.168.1.37 with your actual host IP address
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://192.168.1.37:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
 
