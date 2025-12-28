@@ -25,7 +25,7 @@ fi
 
 # Create venv with system site-packages (for BCC access)
 echo "Creating virtual environment with system site-packages..."
-python3 -m venv .venv --system-site-packages
+python3 -m venv  --system-site-packages .venv
 
 # Install dependencies into the venv
 echo "Installing Python dependencies..."
