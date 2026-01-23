@@ -29,7 +29,9 @@ def merge(
             "pid": pid,
             "cpu_ontime_ns": c.get("cpu_ontime_ns", 0),
             "uid": c.get("uid"),
+            "ppid": c.get("ppid", 0),           # Parent PID for process hierarchy
             "comm": c.get("comm", ""),
+            "exited": c.get("exited", False),   # Whether process has exited
             "read_bytes": 0,
             "write_bytes": 0,
             "net_rx_bytes": 0,
@@ -64,7 +66,7 @@ def merge(
 
 
 class VirtualSensor:
-    def __init__(self, ram_sample_interval_s: float = 1.0, max_workers: int = 2):
+    def __init__(self, ram_sample_interval_s: float = 0.2, max_workers: int = 2):
         # Per-process collectors
         self.cpu_col = CPUCollector()
         self.disk_col = DiskCollector()

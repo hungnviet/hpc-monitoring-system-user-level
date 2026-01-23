@@ -28,7 +28,6 @@ class ComputeNodeAgent:
 
     def _collection_loop(self):
         logger.info("Starting collection loop")
-        config = self.config_manager.config
         collection_enabled = self.config_manager.collection_enabled
         stop_event = self.config_manager.stop_event
 
@@ -38,6 +37,9 @@ class ComputeNodeAgent:
                 continue
 
             try:
+                # Read config dynamically each iteration to pick up etcd changes
+                config = self.config_manager.config
+                
                 process_metrics, system_metrics = self.sensor.collect(config.collection_window)
 
                 if self.grpc_client:
