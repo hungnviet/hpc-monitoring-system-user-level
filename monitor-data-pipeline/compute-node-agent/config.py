@@ -2,7 +2,7 @@ import json
 import time
 from etcd3 import Client as Etcd3Client
 from pathlib import Path
-from threading import Thread, Event
+from threading import Thread, Event, RLock
 from typing import Optional, Any, Callable
 from dataclasses import dataclass
 from utils import get_logger
@@ -36,7 +36,9 @@ class ConfigurationManager:
             self._collection_enabled = Event()
             self._heartbeat_thread: Optional[Thread] = None
             self._status_watch_thread: Optional[Thread] = None
+            self._config_watch_thread: Optional[Thread] = None  # New: watch config keys
             self._status_callback: Optional[Callable[[bool], None]] = None
+            self._config_lock = RLock()  # Thread-safe access to _config
             self._initialized = True
 
     def load(self, infra_path: str = "infra.json") -> ComputeNodeConfig:
@@ -87,30 +89,31 @@ class ConfigurationManager:
                     raise ConnectionError("Max retries reached. Could not connect to etcd.")
 
     def _load_from_etcd(self):
-        prefix = f"/config/compute_node/{self._config.node_id}"
+        with self._config_lock:
+            prefix = f"/config/compute_node/{self._config.node_id}"
 
-        target = self._get_etcd_value(f"{prefix}/target_collect_agent")
-        if target:
-            self._config.target_collect_agent = target
-            logger.info(f"Target collect agent: {target}")
-        else:
-            logger.warning(f"target_collect_agent not found, using default: {self._config.target_collect_agent}")
+            target = self._get_etcd_value(f"{prefix}/target_collect_agent")
+            if target:
+                self._config.target_collect_agent = target
+                logger.info(f"Target collect agent: {target}")
+            else:
+                logger.warning(f"target_collect_agent not found, using default: {self._config.target_collect_agent}")
 
-        window = self._get_etcd_value(f"{prefix}/window")
-        if window:
-            try:
-                self._config.collection_window = float(window)
-                logger.info(f"Collection window: {self._config.collection_window}s")
-            except ValueError:
-                logger.warning(f"Invalid window value '{window}', using default")
+            window = self._get_etcd_value(f"{prefix}/window")
+            if window:
+                try:
+                    self._config.collection_window = float(window)
+                    logger.info(f"Collection window: {self._config.collection_window}s")
+                except ValueError:
+                    logger.warning(f"Invalid window value '{window}', using default")
 
-        heartbeat = self._get_etcd_value(f"{prefix}/heartbeat_interval")
-        if heartbeat:
-            try:
-                self._config.heartbeat_interval = float(heartbeat)
-                logger.info(f"Heartbeat interval: {self._config.heartbeat_interval}s")
-            except ValueError:
-                logger.warning(f"Invalid heartbeat value '{heartbeat}', using default")
+            heartbeat = self._get_etcd_value(f"{prefix}/heartbeat_interval")
+            if heartbeat:
+                try:
+                    self._config.heartbeat_interval = float(heartbeat)
+                    logger.info(f"Heartbeat interval: {self._config.heartbeat_interval}s")
+                except ValueError:
+                    logger.warning(f"Invalid heartbeat value '{heartbeat}', using default")
 
     def _get_etcd_value(self, key: str) -> Optional[str]:
         try:
@@ -124,9 +127,10 @@ class ConfigurationManager:
 
     @property
     def config(self) -> ComputeNodeConfig:
-        if self._config is None:
-            raise RuntimeError("Configuration not loaded. Call load() first.")
-        return self._config
+        with self._config_lock:
+            if self._config is None:
+                raise RuntimeError("Configuration not loaded. Call load() first.")
+            return self._config
 
     @property
     def collection_enabled(self) -> Event:
@@ -145,7 +149,10 @@ class ConfigurationManager:
         self._status_watch_thread = Thread(target=self._watch_status_loop, daemon=True)
         self._status_watch_thread.start()
 
-        logger.info("Background tasks started (heartbeat and status watch)")
+        self._config_watch_thread = Thread(target=self._watch_config_loop, daemon=True)
+        self._config_watch_thread.start()
+
+        logger.info("Background tasks started (heartbeat, status watch, config watch)")
 
     def _heartbeat_loop(self):
         heartbeat_key = f"/nodes/{self._config.node_id}/heartbeat"
@@ -212,6 +219,36 @@ class ConfigurationManager:
         except Exception as e:
             logger.error(f"Error in status watch loop: {e}")
 
+    def _watch_config_loop(self):
+        """Watch all configuration keys and reload when changed."""
+        prefix = f"/config/compute_node/{self._config.node_id}/"
+        logger.info(f"Watching config prefix: {prefix}")
+
+        try:
+            # Watch all keys under the config prefix
+            watcher = self._etcd_client.watch_prefix(key=prefix.encode('utf-8'))
+
+            for event in watcher:
+                if self._stop_event.is_set():
+                    break
+
+                if hasattr(event, 'kv') and event.kv:
+                    key = event.kv.key.decode('utf-8')
+                    value = event.kv.value.decode('utf-8') if event.kv.value else ""
+                    
+                    # Skip status key (handled by _watch_status_loop)
+                    if key.endswith('/status'):
+                        continue
+
+                    logger.info(f"Config changed: {key} = {value}")
+                    
+                    # Reload configuration from etcd
+                    self._load_from_etcd()
+                    logger.info("Configuration reloaded due to etcd change")
+
+        except Exception as e:
+            logger.error(f"Error in config watch loop: {e}")
+
     def shutdown(self):
         logger.info("Shutting down configuration manager...")
         self._stop_event.set()
@@ -225,7 +262,15 @@ class ConfigurationManager:
             logger.info("Waiting for status watch thread to finish...")
             self._status_watch_thread.join(timeout=5)
 
+        if self._config_watch_thread and self._config_watch_thread.is_alive():
+            logger.info("Waiting for config watch thread to finish...")
+            self._config_watch_thread.join(timeout=5)
+
         if self._etcd_client:
+            try:
+                self._etcd_client.close()
+            except Exception as e:
+                logger.warning(f"Error closing etcd client: {e}")
             self._etcd_client = None
 
         logger.info("Configuration manager shutdown complete")

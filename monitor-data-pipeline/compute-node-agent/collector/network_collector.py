@@ -90,6 +90,10 @@ class NetCollector:
 
     def clear(self) -> None:
         self.net_io.clear()
+    
+    def snapshot(self) -> Dict[int, Dict[str, int]]:
+        """Take a snapshot without clearing - for delta calculation."""
+        return self.collect()
 
 
 if __name__ == "__main__":

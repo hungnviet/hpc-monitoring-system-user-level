@@ -20,8 +20,8 @@ def list_pids():
             yield int(name)
 
 class RamCollector:
-    def __init__(self, sample_interval_s: float = 1.0):
-        self.sample_interval_s = max(0.2, sample_interval_s)
+    def __init__(self, sample_interval_s: float = 0.2):
+        self.sample_interval_s = max(0.1, sample_interval_s)  # Allow 100ms min for short-lived processes
 
     def collect_window(self, window_s: float) -> Dict[int, Dict[str, Any]]:
         end = time.time() + window_s

@@ -33,7 +33,7 @@ HEARTBEAT_INTERVAL="10.0"
 
 COLLECT_AGENT_ID=""
 KAFKA_BROKERS="localhost:9092"
-KAFKA_TOPIC="metrics"
+KAFKA_TOPIC="monitoring_metrics"
 GRPC_PORT="50051"
 
 # Parse arguments
