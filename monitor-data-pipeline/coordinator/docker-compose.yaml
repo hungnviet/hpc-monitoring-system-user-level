@@ -30,20 +30,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Optional: etcdkeeper for web UI to manage etcd
-  etcdkeeper:
-    image: deltaprojects/etcdkeeper:latest
-    container_name: etcdkeeper
-    ports:
-      - "8080:8080"  # Web UI
-    environment:
-      - HOST=0.0.0.0
-    depends_on:
-      - etcd
-    networks:
-      - monitoring-network
-    restart: unless-stopped
-
 volumes:
   etcd-data:
     driver: local

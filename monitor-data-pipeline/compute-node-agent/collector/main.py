@@ -72,12 +72,12 @@ class VirtualSensor:
         self.disk_col = DiskCollector()
         self.net_col = NetCollector()
         self.ram_col = RamCollector(sample_interval_s=ram_sample_interval_s)
-        #self.gpu_col = GPUComputeMemCollector()
+        self.gpu_col = GPUComputeMemCollector()
 
         # System-level collectors
         self.sys_cpu_col = SystemCPUCollector()
         self.sys_mem_col = SystemMemoryCollector()
-        #self.gpu_sys_col = GPUSystemCollector()
+        self.gpu_sys_col = GPUSystemCollector()
 
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
 
@@ -102,7 +102,7 @@ class VirtualSensor:
         disk_data = self.disk_col.collect()
         net_data = self.net_col.collect()
         ram_data = ram_future.result()
-        #gpu_data = self.gpu_col.collect()
+        gpu_data = self.gpu_col.collect()
 
         # Debug logging to verify data collection
         logger.debug(f"CPU PIDs collected: {len(cpu_data)}, sample: {list(cpu_data.keys())[:5]}")
@@ -115,7 +115,7 @@ class VirtualSensor:
         # Collect system-level metrics (at end of window for CPU delta)
         sys_cpu = self.sys_cpu_col.collect()
         sys_mem = self.sys_mem_col.collect()
-        #sys_gpu = self.gpu_sys_col.collect()
+        sys_gpu = self.gpu_sys_col.collect()
 
         system_metrics = {
             "cpu_usage_percent": sys_cpu.get("cpu_usage_percent", 0.0),
