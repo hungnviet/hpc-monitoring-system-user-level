@@ -55,10 +55,10 @@ def merge(
         if r:
             obj["avg_rss_bytes"] = r.get("avg_rss_bytes", 0)
 
-        #g = gpu.get(pid)
-        #if g:
-            #obj["process_name"] = g.get("process_name", "")
-            #obj["gpu_used_memory_mib"] = g.get("used_memory_mib", 0)
+        g = gpu.get(pid)
+        if g:
+            obj["process_name"] = g.get("process_name", "")
+            obj["gpu_used_memory_mib"] = g.get("used_memory_mib", 0)
 
         merged[pid] = obj
 
@@ -91,7 +91,6 @@ class VirtualSensor:
         self.cpu_col.clear()
         self.disk_col.clear()
         self.net_col.clear()
-        #self.gpu_col.clear()
 
         ram_future = self._executor.submit(self.ram_col.collect_window, window)
 
@@ -122,7 +121,7 @@ class VirtualSensor:
             "memory_usage_percent": sys_mem.get("memory_usage_percent", 0.0),
             "memory_used_bytes": sys_mem.get("memory_used_bytes", 0),
             "memory_total_bytes": sys_mem.get("memory_total_bytes", 0),
-            "gpus": [],
+            "gpus": sys_gpu.get("gpus", []),
         }
 
         return process_metrics, system_metrics
