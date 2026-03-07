@@ -2,7 +2,6 @@
 import { useState } from "react"
 import { UsageChart } from "@/components/analytics/UsageChart"
 import { Button } from "@/components/ui/Button"
-import { mockUserUsage } from "@/lib/mockData/analytics"
 
 const EXAMPLES = [
   "Show GPU usage for all users in the last 24 hours",
@@ -17,25 +16,6 @@ interface GeneratedChart {
   prompt: string
 }
 
-function mockGenerate(prompt: string): GeneratedChart {
-  const isGpu = /gpu/i.test(prompt)
-  const isMem = /mem/i.test(prompt)
-  const resource = isGpu ? "gpu" : isMem ? "mem" : "cpu"
-  const chartType = /bar/i.test(prompt) ? "bar" : "line"
-
-  const series = mockUserUsage
-    .filter(u => u.resource === resource)
-    .slice(0, 3)
-    .map(u => ({ name: u.username, data: u.data }))
-
-  return {
-    title: `${resource.toUpperCase()} Usage — AI Generated`,
-    series,
-    chartType,
-    prompt,
-  }
-}
-
 export default function AiChartPage() {
   const [prompt, setPrompt] = useState("")
   const [chart, setChart] = useState<GeneratedChart | null>(null)
@@ -44,9 +24,22 @@ export default function AiChartPage() {
   async function generate() {
     if (!prompt.trim()) return
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1200))
-    setChart(mockGenerate(prompt))
-    setLoading(false)
+    try {
+      const res = await fetch("/api/analytics/ai-chart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      })
+      const result = await res.json()
+      setChart({
+        title: `${result.resource.toUpperCase()} Usage — AI Generated`,
+        series: [{ name: result.resource, data: result.data.map((d: { t: string; value: number }) => ({ timestamp: d.t, value: d.value })) }],
+        chartType: result.chartType,
+        prompt,
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

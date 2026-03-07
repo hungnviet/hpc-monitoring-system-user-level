@@ -50,7 +50,7 @@ export function UsageChart({ series, chartType = "line", height = 260, unit = "%
       <LineChart {...commonProps}>
         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
         <XAxis dataKey="time" tick={{ fill: "#6e7681", fontSize: 11 }} tickLine={false} axisLine={false} />
-        <YAxis tick={{ fill: "#6e7681", fontSize: 11 }} tickLine={false} axisLine={false} domain={[0, 100]} unit={unit} />
+        <YAxis tick={{ fill: "#6e7681", fontSize: 11 }} tickLine={false} axisLine={false} domain={[0, "auto"]} unit={unit} />
         <Tooltip contentStyle={tooltipStyle} />
         <Legend wrapperStyle={{ fontSize: 12, color: "#8b949e" }} />
         {series.map((s, i) => <Line key={s.name} type="monotone" dataKey={s.name} stroke={COLORS[i % COLORS.length]} dot={false} strokeWidth={2} />)}
@@ -63,7 +63,7 @@ export function UsageChart({ series, chartType = "line", height = 260, unit = "%
       <BarChart {...commonProps}>
         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
         <XAxis dataKey="time" tick={{ fill: "#6e7681", fontSize: 11 }} tickLine={false} axisLine={false} />
-        <YAxis tick={{ fill: "#6e7681", fontSize: 11 }} tickLine={false} axisLine={false} domain={[0, 100]} unit={unit} />
+        <YAxis tick={{ fill: "#6e7681", fontSize: 11 }} tickLine={false} axisLine={false} domain={[0, "auto"]} unit={unit} />
         <Tooltip contentStyle={tooltipStyle} />
         <Legend wrapperStyle={{ fontSize: 12, color: "#8b949e" }} />
         {series.map((s, i) => (

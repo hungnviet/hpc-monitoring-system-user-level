@@ -1,6 +1,5 @@
 "use client"
 import { useState, useRef, useEffect } from "react"
-import { mockChatReply } from "@/lib/mockData/chat"
 import type { ChatMessage } from "@/types"
 
 const INITIAL_MESSAGES: ChatMessage[] = [
@@ -51,11 +50,17 @@ export default function ChatPage() {
     setMessages(prev => [...prev, userMsg])
     setLoading(true)
 
-    await new Promise(r => setTimeout(r, 800))
-    const reply = mockChatReply(content)
-    const botMsg: ChatMessage = { id: String(Date.now() + 1), role: "assistant", content: reply, timestamp: new Date().toISOString() }
-    setMessages(prev => [...prev, botMsg])
-    setLoading(false)
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [...messages, userMsg] }),
+      })
+      const botMsg: ChatMessage = await res.json()
+      setMessages(prev => [...prev, botMsg])
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
