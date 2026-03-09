@@ -23,6 +23,12 @@ interface EtcdNode {
   target_collect_agent?: string
 }
 
+interface LatestMetric {
+  cpu: number | null
+  gpu: number | null
+  mem: number | null
+}
+
 interface MergedNode {
   id: string
   name: string
@@ -34,6 +40,9 @@ interface MergedNode {
   etcdLoaded: boolean
   window?: string
   heartbeat?: string
+  cpu: number | null
+  gpu: number | null
+  mem: number | null
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -44,11 +53,16 @@ function deriveStatus(etcdStatus: "running" | "stopped" | "unknown"): NodeStatus
   return "idle" // in DB registry but not yet in etcd
 }
 
-function merge(dbNodes: DbNode[], etcdNodes: EtcdNode[]): MergedNode[] {
+function merge(
+  dbNodes: DbNode[],
+  etcdNodes: EtcdNode[],
+  latestMetrics: Record<string, LatestMetric>
+): MergedNode[] {
   const etcdMap = new Map(etcdNodes.map(n => [n.nodeId, n]))
   return dbNodes.map(db => {
     const e = etcdMap.get(db.id)
     const etcdStatus = e?.status ?? "unknown"
+    const m = latestMetrics[db.id]
     return {
       id:           db.id,
       name:         db.name,
@@ -60,6 +74,9 @@ function merge(dbNodes: DbNode[], etcdNodes: EtcdNode[]): MergedNode[] {
       etcdLoaded:   !!e,
       window:       e?.window,
       heartbeat:    e?.heartbeat_interval,
+      cpu:          m?.cpu ?? null,
+      gpu:          m?.gpu ?? null,
+      mem:          m?.mem ?? null,
     }
   })
 }
@@ -92,14 +109,17 @@ export default function NodesPage() {
 
   const load = useCallback(async () => {
     try {
-      const [dbRes, etcdRes] = await Promise.all([
+      const [dbRes, etcdRes, metricsRes] = await Promise.all([
         fetch("/api/nodes"),
         fetch("/api/etcd/nodes"),
+        fetch("/api/nodes/metrics/latest"),
       ])
       if (!dbRes.ok) throw new Error("Failed to load nodes")
       const dbNodes: DbNode[] = await dbRes.json()
       const etcdNodes: EtcdNode[] = etcdRes.ok ? await etcdRes.json() : []
-      setNodes(merge(dbNodes, etcdNodes))
+      const latestMetrics: Record<string, LatestMetric> = metricsRes.ok
+        ? await metricsRes.json() : {}
+      setNodes(merge(dbNodes, etcdNodes, latestMetrics))
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error")
@@ -179,17 +199,17 @@ export default function NodesPage() {
     {
       key: "cpu",
       header: "CPU",
-      render: () => <UsageBar value={null} color="#58a6ff" />,
+      render: (n: MergedNode) => <UsageBar value={n.cpu !== null ? Math.round(n.cpu) : null} color="#58a6ff" />,
     },
     {
       key: "gpu",
       header: "GPU",
-      render: () => <UsageBar value={null} color="#bc8cff" />,
+      render: (n: MergedNode) => <UsageBar value={n.gpu !== null ? Math.round(n.gpu) : null} color="#bc8cff" />,
     },
     {
       key: "mem",
       header: "Memory",
-      render: () => <UsageBar value={null} color="#3fb950" />,
+      render: (n: MergedNode) => <UsageBar value={n.mem !== null ? Math.round(n.mem) : null} color="#3fb950" />,
     },
     {
       key: "actions",
@@ -273,7 +293,7 @@ export default function NodesPage() {
         <span className="text-[#d29922]">● {idle} idle</span>
         <span className="text-[#f85149]">● {down} down</span>
         <span className="text-xs text-[#6e7681] ml-auto">
-          Usage metrics available in Phase 3 (InfluxDB)
+          Metrics from last hourly snapshot
         </span>
       </div>
 

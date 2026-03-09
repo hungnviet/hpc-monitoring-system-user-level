@@ -2,23 +2,15 @@
 import { useState } from "react"
 
 interface GrafanaPanelProps {
-  title: string
   src?: string        // full Grafana embed URL; if empty, shows placeholder
   height?: number
 }
 
-export function GrafanaPanel({ title, src, height = 220 }: GrafanaPanelProps) {
+export function GrafanaPanel({ src, height = 220 }: GrafanaPanelProps) {
   const [loaded, setLoaded] = useState(false)
 
   return (
     <div className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#21262d] flex items-center justify-between">
-        <span className="text-xs font-semibold text-[#8b949e] uppercase tracking-wide">{title}</span>
-        {src && (
-          <a href={src} target="_blank" rel="noopener" className="text-[#58a6ff] hover:underline text-xs">Open ↗</a>
-        )}
-      </div>
-
       <div style={{ height }} className="relative">
         {src ? (
           <>
