@@ -110,6 +110,18 @@ export interface ChatMessage {
   timestamp: string
 }
 
+// ── App Usage (analytics) ────────────────────────────────────────────
+export interface AppUsageRow {
+  username: string
+  comm: string
+  cpu_seconds: number
+  peak_mem_mb: number
+  peak_gpu_mib: number
+  disk_io_mb: number
+  net_io_mb: number
+  total_processes: number
+}
+
 // ── Users (for analytics selectors) ──────────────────────────────────
 export interface HpcUser {
   id: string

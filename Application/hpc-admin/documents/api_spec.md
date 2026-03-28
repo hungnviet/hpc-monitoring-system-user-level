@@ -39,30 +39,88 @@ Authentication is handled upstream by `src/proxy.ts` (Auth.js v5), so every API 
 
 **Key design notes:**
 - `id` is the same string as `nodeId` in all InfluxDB measurements — it is the join key across every part of the system.
-- Real-time status (`active` / `idle` / `down`) is NOT stored here. It is derived at query time: active = seen in InfluxDB in the last 10 s, idle = last 5 min, down = older than 5 min. This mirrors Grafana's logic.
-- The dashboard page calls `GET /api/nodes` to populate the node list and status grid.
+- Real-time status (`active` / `idle` / `down`) is NOT stored here. It is derived at query time from etcd: `running` → active, `stopped` → down, absent from etcd → idle.
+- The dashboard page no longer calls `GET /api/nodes` for status counts — it uses etcd only (see §2).
 
 ---
 
 ### 2. Analytics (`/api/analytics`)
 
-**Purpose:** Answer two questions — "how much resource did each user consume?" and "what does usage look like over time?"
+**Purpose:** Answer two questions — "how much resource did each user consume?" and "what does cluster resource utilization look like over time?"
 
 #### 2a. User Usage (`/api/analytics/user-usage`)
 
 | Endpoint | Method | What it does |
 |---|---|---|
-| `/api/analytics/user-usage?mode=summary&from=&to=` | GET | Per-user totals (CPU hours, peak memory, peak GPU, total disk I/O) |
-| `/api/analytics/user-usage?mode=timeseries&uid=&from=&to=` | GET | Hourly CPU-hours for one user (feed into Recharts line chart) |
-| `/api/analytics/user-usage?mode=apps&uid=&from=&to=` | GET | Per-app breakdown for one user (comm field from process table) |
+| `/api/analytics/user-usage?mode=summary&from=&to=` | GET | Per-user aggregate totals over the time range (CPU s, peak mem, peak GPU, disk I/O, net I/O) |
+| `/api/analytics/user-usage?mode=timeseries&uid=X&resource=Y&from=&to=` | GET | Hourly buckets for one user + one resource — feeds line/bar charts in `by-user` view |
+| `/api/analytics/user-usage?mode=apps&uid=A,B&from=&to=` | GET | Per-app totals for one or more users (all five resources + process count) — feeds `AppSelector`, `AppUsageTable`, and pie charts |
+| `/api/analytics/user-usage?mode=app-timeseries&uid=A,B&resource=Y&from=&to=` | GET | Hourly buckets broken down by user × app — feeds line/bar charts in `by-app` view |
+
+**Query parameters:**
+- `uid` — comma-separated Linux UIDs (integers). Multiple UIDs accepted by `mode=apps` and `mode=app-timeseries`.
+- `resource` — one of `cpu | mem | gpu | disk | net`. Used by `mode=timeseries` and `mode=app-timeseries`.
+- `from` / `to` — ISO 8601 timestamps. Default: `from` = 7 days ago, `to` = now.
+
+**Response shapes:**
+
+`mode=summary` → `{ uid, username, group_name, total_cpu_seconds, peak_mem_bytes, peak_gpu_mib, total_disk_bytes, total_net_bytes }[]`
+
+`mode=timeseries` → `{ t: ISO string, value: number }[]`
+
+`mode=apps` → `{ username, comm, cpu_seconds, peak_mem_mb, peak_gpu_mib, disk_io_mb, net_io_mb, total_processes }[]`
+
+`mode=app-timeseries` → `{ t: ISO string, username: string, comm: string, value: number }[]`
 
 **Key design notes:**
-- Queries run against `user_app_hourly` (a TimescaleDB continuous aggregate written by the pipeline), joined with `hpc_users` for human-readable names.
-- `uid` is a Linux UID integer — it is the join key between `hpc_users` and `user_app_hourly`. It is NOT a UUID.
-- `mode=summary` drives the user selector on `/analytics`. `mode=timeseries` drives the Recharts chart. `mode=apps` drives the per-user app breakdown toggle.
-- Time range defaults: `from` = 7 days ago, `to` = now.
+- All queries run against `user_app_hourly` (TimescaleDB continuous aggregate written by the pipeline), joined with `hpc_users` for human-readable names.
+- `uid` is a Linux UID integer — the join key between `hpc_users` and `user_app_hourly`. It is NOT a UUID.
+- `mode=summary` populates the user selector pills. `mode=apps` populates `AppSelector` and `AppUsageTable`, and is the sole data source for pie charts (no timeseries needed for pie). `mode=timeseries` / `mode=app-timeseries` feed the line/bar Recharts components.
+- When `chartType=pie` the frontend skips `mode=timeseries` and `mode=app-timeseries` entirely — it aggregates `mode=apps` data client-side.
+- `mode=app-timeseries` groups by `(time_bucket, uid, username, comm)` and returns one row per user × app × hour. The frontend groups these rows into named series keyed as `"username - comm"` and filters to `selectedApps`.
+- App selection filtering (`selectedApps`) is applied **client-side** — the API always returns all apps for the requested users, and the page filters the series before rendering.
+- **Intersection rule** (frontend `AppSelector`): when multiple users are selected, only `comm` values that appear in every user's app list are offered for selection.
 
-#### 2b. AI Chart (`/api/analytics/ai-chart`)
+#### 2b. Cluster Stats (`/api/analytics/cluster-stats`)
+
+| Endpoint | Method | What it does |
+|---|---|---|
+| `/api/analytics/cluster-stats?range=1h\|6h\|24h` | GET | Cluster-wide aggregate resource stats for the selected time window |
+
+**Query param:** `range` — one of `1h`, `6h`, `24h` (default `1h`). Any other value is clamped to `1h`.
+
+**Source table:** `node_status_hourly` (TimescaleDB, read-only — written by the pipeline).
+
+**SQL:**
+```sql
+SELECT
+  ROUND(AVG(avg_cpu_usage_percent)::numeric, 1)                                          AS avg_cpu_pct,
+  ROUND(AVG(avg_gpu_utilization)::numeric, 1)                                            AS avg_gpu_pct,
+  ROUND(AVG(avg_mem_usage_percent)::numeric, 1)                                          AS avg_mem_pct,
+  ROUND(((SUM(total_disk_read_bytes) + SUM(total_disk_write_bytes)) / 1048576.0)::numeric, 1) AS total_disk_mb,
+  ROUND((SUM(total_net_rx_bytes) / 1048576.0)::numeric, 1)                               AS net_rx_mb,
+  ROUND((SUM(total_net_tx_bytes) / 1048576.0)::numeric, 1)                               AS net_tx_mb
+FROM node_status_hourly
+WHERE bucket_time >= NOW() - ($1::text)::interval
+```
+
+**Response shape:**
+```json
+{
+  "avg_cpu_pct":   number | null,
+  "avg_gpu_pct":   number | null,
+  "avg_mem_pct":   number | null,
+  "total_disk_mb": number | null,
+  "net_rx_mb":     number | null,
+  "net_tx_mb":     number | null
+}
+```
+
+All values are null when the table has no rows in the selected window.
+
+**Used by:** `/dashboard` page stat cards (Avg CPU %, Avg GPU %, Avg Memory %, Avg Disk MB, Network In MB, Network Out MB). Re-fetched whenever the time range selector changes.
+
+#### 2c. AI Chart (`/api/analytics/ai-chart`)
 
 | Endpoint | Method | What it does |
 |---|---|---|
@@ -193,13 +251,14 @@ COMMIT
 4. Check etcd key structure: `etcdctl get / --prefix --keys-only` then adjust prefix in `src/lib/etcd.ts`
 
 ### Phase 2 — API Routes (DONE)
-All 16 route files created under `src/app/api/`. Build passes with zero errors.
+All route files created under `src/app/api/`. Build passes with zero errors.
 
 ```
 ✅ src/app/api/nodes/route.ts
 ✅ src/app/api/nodes/[nodeId]/route.ts
 ✅ src/app/api/analytics/user-usage/route.ts
 ✅ src/app/api/analytics/ai-chart/route.ts
+✅ src/app/api/analytics/cluster-stats/route.ts          ← added
 ✅ src/app/api/config/collection/route.ts
 ✅ src/app/api/config/collection/[nodeId]/route.ts
 ✅ src/app/api/config/pipeline/route.ts
@@ -214,65 +273,14 @@ All 16 route files created under `src/app/api/`. Build passes with zero errors.
 ✅ src/app/api/chat/route.ts
 ```
 
-### Phase 3 — Integration (NEXT)
-
-For each page, replace the mock data import with a real `fetch` call.
-
-**Step-by-step per page:**
-
-| Page | Remove | Replace with |
-|---|---|---|
-| `/dashboard` | `mockNodes` | `GET /api/nodes` |
-| `/dashboard/nodes` | `mockNodes` | `GET /api/nodes` |
-| `/dashboard/nodes/[nodeId]` | `mockNodes.find(...)` | `GET /api/nodes/[nodeId]` |
-| `/analytics` | `mockUserUsage` | `GET /api/analytics/user-usage?mode=summary` |
-| `/analytics` (chart) | hardcoded series | `GET /api/analytics/user-usage?mode=timeseries&uid=...` |
-| `/analytics/ai-chart` | mock chart | `POST /api/analytics/ai-chart` |
-| `/config/collection` | `mockCollectionSettings` | `GET /api/config/collection` |
-| `/config/collection` (save) | no-op | `PUT /api/config/collection/[nodeId]` |
-| `/config/pipeline` | `mockRules` | `GET /api/config/pipeline` |
-| `/config/pipeline` (CRUD) | local state only | `POST / PUT / DELETE /api/config/pipeline` |
-| `/config/alerts` | `mockAlertRules` | `GET /api/config/alerts` |
-| `/config/alerts` (CRUD) | local state only | `POST / PUT / DELETE /api/config/alerts` |
-| `/config/governance` | `mockVersions` | `GET /api/config/governance/versions` |
-| `/config/governance` (audit) | `mockAuditLogs` | `GET /api/config/governance/audit` |
-| `/config/governance` (rollout) | mock handler | `POST /api/config/governance/rollout` |
-| `/chat` | canned replies | `POST /api/chat` |
-
-**Pattern for server components (preferred):**
-```ts
-// In a server component (no "use client")
-const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/nodes`, { cache: "no-store" })
-const nodes = await res.json()
-```
-
-**Pattern for interactive client components:**
-```ts
-// In a "use client" component that needs user interaction
-const [data, setData] = useState([])
-useEffect(() => {
-  fetch("/api/config/pipeline").then(r => r.json()).then(setData)
-}, [])
-```
-
-**Add loading states:**
-```tsx
-<Suspense fallback={<div className="animate-pulse h-40 bg-[#1c2128] rounded" />}>
-  <NodeList />
-</Suspense>
-```
-
-**Wire Grafana iframes:**
-```ts
-const grafanaUrl = (dashId: string, panelId: number, range = "1h") =>
-  `${process.env.GRAFANA_BASE_URL}/d/${dashId}?panelId=${panelId}&kiosk&from=now-${range}&to=now`
-```
+### Phase 3 — Integration (DONE)
+All pages wired to real API. Dashboard fully integrated (etcd-only node counts, real cluster stats from `node_status_hourly`, dynamic Grafana embed URL).
 
 ### Phase 4 — Future Enhancements (optional)
 
 | Feature | What to build |
 |---|---|
-| Real-time node status | Poll `GET /api/nodes` every 10 s on dashboard (or use SSE) |
+| Real-time node status | Poll `GET /api/etcd/nodes` every 10 s on dashboard (or use SSE) |
 | Alert engine | Cron job or Grafana webhook → `POST /api/notifications` |
 | Claude-powered chat | Replace chat stub with Anthropic SDK call + metric tool-calls |
 | AI chart (real) | Replace keyword stub with Claude API generating a TimescaleDB query |
