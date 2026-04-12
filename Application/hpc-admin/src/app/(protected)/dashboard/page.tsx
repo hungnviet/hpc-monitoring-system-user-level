@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { GrafanaPanel } from "@/components/dashboard/GrafanaPanel"
 import { HealthIndicator } from "@/components/dashboard/HealthIndicator"
 
@@ -26,8 +26,11 @@ interface ClusterStats {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function buildSummary(etcdNodes: EtcdNode[]): ClusterSummary {
-  const active = etcdNodes.filter(n => n.status === "running").length
-  const down   = etcdNodes.filter(n => n.status === "stopped").length
+  let active = 0, down = 0
+  for (const n of etcdNodes) {
+    if (n.status === "running") active++
+    else if (n.status === "stopped") down++
+  }
   return { totalNodes: etcdNodes.length, activeNodes: active, idleNodes: 0, downNodes: down }
 }
 
@@ -90,13 +93,14 @@ export default function DashboardPage() {
   }, [load, timeRange])
 
   const s = summary
-  const cpuPanelSrc = `${GRAFANA_BASE}&panelId=panel-6&from=now-${timeRange}&to=now`
-  const memPanelSrc = `${GRAFANA_BASE}&panelId=panel-8&from=now-${timeRange}&to=now`
-
-  const gpuTempPanelSrc = `${GRAFANA_BASE}&panelId=panel-4&from=now-${timeRange}&to=now`
-  const gpuPowerPanelSrc = `${GRAFANA_BASE}&panelId=panel-11&from=now-${timeRange}&to=now`
-  const gpuPanelSrc = `${GRAFANA_BASE}&panelId=panel-10&from=now-${timeRange}&to=now`
-  const gpuMemPanelSrc = `${GRAFANA_BASE}&panelId=panel-13&from=now-${timeRange}&to=now`
+  const panels = useMemo(() => ({
+    cpu:      `${GRAFANA_BASE}&panelId=panel-6&from=now-${timeRange}&to=now`,
+    mem:      `${GRAFANA_BASE}&panelId=panel-8&from=now-${timeRange}&to=now`,
+    gpu:      `${GRAFANA_BASE}&panelId=panel-10&from=now-${timeRange}&to=now`,
+    gpuMem:   `${GRAFANA_BASE}&panelId=panel-13&from=now-${timeRange}&to=now`,
+    gpuTemp:  `${GRAFANA_BASE}&panelId=panel-4&from=now-${timeRange}&to=now`,
+    gpuPower: `${GRAFANA_BASE}&panelId=panel-11&from=now-${timeRange}&to=now`,
+  }), [timeRange])
 
 
 
@@ -181,12 +185,12 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-sm font-semibold text-[#8b949e] mb-3 uppercase tracking-wide">Cluster Resource Usage</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <GrafanaPanel         src={cpuPanelSrc} height={220} />
-          <GrafanaPanel         src={memPanelSrc} height={220} />
-           <GrafanaPanel    src={gpuPanelSrc} height={220} />
-          <GrafanaPanel    src={gpuMemPanelSrc} height={220} />
-          <GrafanaPanel    src={gpuTempPanelSrc} height={220} />
-          <GrafanaPanel   src={gpuPowerPanelSrc} height={220} />
+          <GrafanaPanel src={"http://localhost:3000/d-solo/ai-viz-planner/ai-visualization-planner?orgId=1&from=1775970886672&to=1775971186672&timezone=Asia%2FHo_Chi_Minh&refresh=10s&panelId=panel-27&__feature.dashboardScene=true"}      height={220} />
+          <GrafanaPanel src={panels.mem}      height={220} />
+          <GrafanaPanel src={panels.gpu}      height={220} />
+          <GrafanaPanel src={panels.gpuMem}   height={220} />
+          <GrafanaPanel src={panels.gpuTemp}  height={220} />
+          <GrafanaPanel src={panels.gpuPower} height={220} />
         </div>
       </div>
     </div>

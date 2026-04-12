@@ -1,5 +1,5 @@
 "use client"
-import { use, useState, useEffect, useCallback } from "react"
+import { use, useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
@@ -86,6 +86,12 @@ const FIELDS: FieldDef[] = [
 
 type RangeKey = "24h" | "48h" | "7d" | "30d"
 
+const GRAFANA_BASE = "http://10.1.8.155:3000/d-solo/adtfbh4/h6-monitoring?orgId=1&timezone=browser&var-gpu=0&refresh=10s&__feature.dashboardSceneSolo=true"
+
+function grafanaUrl(nodeId: string, range: RangeKey, panelId: string) {
+  return `${GRAFANA_BASE}&var-node=${encodeURIComponent(nodeId)}&from=now-${range}&to=now&panelId=${panelId}`
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function deriveStatus(s: "running" | "stopped" | "unknown"): NodeStatus {
@@ -150,6 +156,8 @@ const tooltipStyle = {
   color: "#e6edf3",
   fontSize: "12px",
 }
+
+const FIELD_BY_KEY = new Map(FIELDS.map(f => [f.key as string, f]))
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -242,21 +250,24 @@ export default function NodeDetailPage({ params }: { params: Promise<{ nodeId: s
 
   // ── Derived chart data ──────────────────────────────────────────────────────
 
-  const latest = hourly.length > 0 ? hourly[hourly.length - 1] : null
+  const latest = useMemo(() => hourly.at(-1) ?? null, [hourly])
 
-  const chartData = hourly.map(row => {
+  const selectedSet = useMemo(() => new Set(selectedFields), [selectedFields])
+
+  const activeFields = useMemo(
+    () => FIELDS.filter(f => selectedSet.has(f.key as string)),
+    [selectedSet],
+  )
+
+  const chartData = useMemo(() => hourly.map(row => {
     const obj: Record<string, string | number | null> = {
       time: formatBucketTime(row.bucket_time, range),
     }
-    for (const f of FIELDS) {
-      if (selectedFields.includes(f.key as string)) {
-        obj[f.key as string] = getFieldValue(row, f)
-      }
+    for (const f of activeFields) {
+      obj[f.key as string] = getFieldValue(row, f)
     }
     return obj
-  })
-
-  const activeFields = FIELDS.filter(f => selectedFields.includes(f.key as string))
+  }), [hourly, range, activeFields])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -450,17 +461,14 @@ export default function NodeDetailPage({ params }: { params: Promise<{ nodeId: s
               <Tooltip
                 contentStyle={tooltipStyle}
                 formatter={(value, name) => {
-                  const field = FIELDS.find(f => (f.key as string) === name)
+                  const field = FIELD_BY_KEY.get(String(name))
                   if (value == null) return ["—", field?.label ?? String(name)]
                   return [`${value}${field?.unit ?? ""}`, field?.label ?? String(name)]
                 }}
               />
               <Legend
                 wrapperStyle={{ fontSize: 12, color: "#8b949e" }}
-                formatter={(value: string) => {
-                  const field = FIELDS.find(f => (f.key as string) === value)
-                  return field?.label ?? value
-                }}
+                formatter={(value: string) => FIELD_BY_KEY.get(value)?.label ?? value}
               />
               {activeFields.map(f => (
                 <Line
@@ -482,11 +490,8 @@ export default function NodeDetailPage({ params }: { params: Promise<{ nodeId: s
       <div>
         <h2 className="text-sm font-semibold text-[#8b949e] mb-3 uppercase tracking-wide">Grafana Panels</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <GrafanaPanel title="CPU Utilization + Load"     height={220} />
-          <GrafanaPanel title="GPU Usage + Temperature"    height={220} />
-          <GrafanaPanel title="GPU Power Draw"             height={220} />
-          <GrafanaPanel title="Memory Usage + Bandwidth"  height={220} />
-          <GrafanaPanel title="Disk Throughput + Latency" height={220} />
+          <GrafanaPanel src={grafanaUrl(nodeId, range, "panel-15")}  height={220} />
+          <GrafanaPanel src={grafanaUrl(nodeId, range, "panel-17")}  height={220} />
         </div>
       </div>
     </div>

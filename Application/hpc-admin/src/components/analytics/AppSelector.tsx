@@ -11,6 +11,7 @@ interface AppSelectorProps {
 
 export function AppSelector({ apps, selected, onChange, loading }: AppSelectorProps) {
   const [search, setSearch] = useState("")
+  const selectedSet = useMemo(() => new Set(selected), [selected])
 
   // Intersection: only apps used by ALL selected users, ranked by total cpu_seconds
   const uniqueApps = useMemo(() => {
@@ -19,6 +20,7 @@ export function AppSelector({ apps, selected, onChange, loading }: AppSelectorPr
     // Group by comm → distinct users that ran it + summed cpu_seconds
     const byComm = new Map<string, { users: Set<string>; cpu_seconds: number }>()
     for (const row of apps) {
+      if (!row.comm) continue
       if (!byComm.has(row.comm)) byComm.set(row.comm, { users: new Set(), cpu_seconds: 0 })
       const entry = byComm.get(row.comm)!
       entry.users.add(row.username)
@@ -111,7 +113,7 @@ export function AppSelector({ apps, selected, onChange, loading }: AppSelectorPr
       ) : (
         <div className="max-h-44 overflow-y-auto space-y-0.5 pr-1">
           {filtered.map(app => {
-            const isSelected = selected.includes(app.comm)
+            const isSelected = selectedSet.has(app.comm)
             const barPct = Math.max(2, (app.cpu_seconds / maxCpu) * 100)
             return (
               <button

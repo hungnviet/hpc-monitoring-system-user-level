@@ -2,6 +2,7 @@ import etcd from "@/lib/etcd"
 import { NextResponse } from "next/server"
 
 const NODE_PREFIX = "/config/compute_node/"
+const HEARTBEAT_PREFIX = "/nodes/"
 
 // Parse a flat KV map like:
 //   { "/config/compute_node/node_id_1/window": "5.0", ... }
@@ -20,12 +21,45 @@ function parseNodes(kv: Record<string, string>) {
   return Object.values(nodes)
 }
 
+// Parse heartbeat keys like /nodes/node_id_1/heartbeat into a nodeId → heartbeat map.
+function parseHeartbeats(kv: Record<string, string>): Record<string, { timestamp: number; status: string; collection_active: boolean }> {
+  const out: Record<string, { timestamp: number; status: string; collection_active: boolean }> = {}
+  for (const [key, value] of Object.entries(kv)) {
+    const relative = key.slice(HEARTBEAT_PREFIX.length) // "node_id_1/heartbeat"
+    const slash = relative.indexOf("/")
+    if (slash === -1) continue
+    const nodeId = relative.slice(0, slash)
+    const field  = relative.slice(slash + 1)
+    if (field !== "heartbeat") continue
+    try { out[nodeId] = JSON.parse(value) } catch { /* ignore malformed */ }
+  }
+  return out
+}
+
 // GET /api/etcd/nodes
-// Returns all compute nodes stored in etcd with their current config.
+// Returns all compute nodes stored in etcd with live status derived from heartbeat data.
 export async function GET() {
   try {
-    const kv = await etcd.getAll().prefix(NODE_PREFIX).strings()
-    return NextResponse.json(parseNodes(kv))
+    const [configKv, heartbeatKv] = await Promise.all([
+      etcd.getAll().prefix(NODE_PREFIX).strings(),
+      etcd.getAll().prefix(HEARTBEAT_PREFIX).strings(),
+    ])
+    const nodes      = parseNodes(configKv)
+    const heartbeats = parseHeartbeats(heartbeatKv)
+    const nowSec     = Math.floor(Date.now() / 1000)
+
+    const result = nodes.map(node => {
+      const interval  = parseFloat(node.heartbeat_interval ?? "20")
+      const threshold = isNaN(interval) ? 60 : interval * 3
+      const hb        = heartbeats[node.nodeId]
+      const isAlive   =
+        hb !== undefined &&
+        hb.status === "alive" &&
+        (nowSec - hb.timestamp) <= threshold
+      return { ...node, status: isAlive ? "running" : "stopped" }
+    })
+
+    return NextResponse.json(result)
   } catch {
     return NextResponse.json({ error: "etcd unavailable" }, { status: 503 })
   }
