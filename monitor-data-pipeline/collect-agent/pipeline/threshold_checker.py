@@ -77,6 +77,8 @@ class ThresholdChecker(PipelineStage):
                 metrics['gpu_max_power_watts'] = max(g.power_watts for g in sm.gpus)
                 metrics['gpu_total_memory_used_mib'] = sum(g.memory_used_mib for g in sm.gpus)
                 metrics['gpu_count'] = len(sm.gpus)
+                # Alias for etcd `threshold_rules` that use `gpu_utilization_percent`
+                metrics['gpu_utilization_percent'] = metrics['gpu_max_utilization_percent']
 
         return metrics
 

@@ -23,11 +23,12 @@ Compute Nodes → [gRPC Stream] → Collect Agent → [Kafka] → Message Broker
 
 Fixed stages executed sequentially:
 
-1. **SchemaValidator** - Validates incoming protobuf schema
-2. **MetricsFilter** - Removes bootstrap/invalid/noisy records
-3. **MetricsEnricher** - Adds collectAgentId and system metadata
-4. **ThresholdChecker** - Checks resource thresholds, triggers alerts
-5. **UserProcessor** - User-configurable plugins (optional)
+1. **SchemaValidator** - Validates incoming protobuf / `MetricBatch` shape
+2. **FieldProjectionStage** - Keeps only etcd-configured process fields (others zeroed); Kafka emits only those keys when set
+3. **PrefixAggregationStage** - Groups processes by longest matching `comm` prefix per `uid`, sums numeric fields (unmatched processes pass through)
+4. **MetricsEnricher** - Adds `collect_agent_id` and `received_timestamp`
+5. **ThresholdChecker** - Node/system thresholds and alerts
+6. **UserProcessor** - User-configurable plugins (optional)
 
 ### 3. Message Broker Publisher (`publisher/`)
 
@@ -45,7 +46,7 @@ Fixed stages executed sequentially:
 
 - Loads from etcd
 - Singleton pattern
-- Hot-reload support
+- `reload()` re-reads etcd (restart the process or call `reload()` if you extend the server to use it; pipeline stages read `CollectAgentConfig` on each batch)
 
 ## Setup
 
@@ -89,38 +90,39 @@ python3 main.py
 
 - Validates required fields: node_id, timestamp, processes
 - Checks process fields: pid > 0, cpu_ontime_ns >= 0, comm exists
-- Invalid processes are dropped
+- Invalid processes are dropped; invalid optional system metrics are cleared
 
-### Stage 2: Filtering & Cleaning
+### Stage 2: Field projection
 
-- Filters bootstrap processes: systemd, init, kthreadd
-- Removes metrics from startup period (< 300s)
-- Drops processes with zero activity
+- If `process_fields` is set in etcd, only those fields are retained (others zeroed on `ProcessMetric`)
+- Kafka JSON for each process includes only those keys (plus `metadata` only when not projecting)
 
-### Stage 3: Enrichment
+### Stage 3: Prefix aggregation
+
+- If `comm_prefixes` is set, groups by `(uid, longest matching prefix)` and merges rows as described above
+- If unset or empty, this stage is a no-op
+
+### Stage 4: Enrichment
 
 - Adds `collect_agent_id`
 - Adds `received_timestamp`
-- Attaches system metadata to each process
 
-### Stage 4: Threshold Checking
+### Stage 5: Threshold Checking
 
-- Calculates node-level aggregates
+- Calculates node-level aggregates (including system and GPU metrics when present)
 - Checks against configured thresholds
 - Triggers alerts via gRPC to Main Server
 
-### Stage 5: User Processors (Optional)
+### Stage 6: User Processors (Optional)
 
-- **Aggregator**: Time-window aggregation
-- **Sampler**: Statistical sampling
-- Extensible plugin system
+- **Aggregator** / **Sampler** plugins from etcd `user_processors`
 
 ## Data Flow
 
 ```
 1. Compute Node Agent → gRPC Stream → MetricsServicer
 2. MetricsServicer → Proto to MetricBatch
-3. MetricBatch → Pipeline (5 stages)
+3. MetricBatch → Pipeline (core stages above)
 4. Valid batches → Kafka Publisher
 5. Threshold violations → Alert Client → Main Server
 ```
@@ -135,8 +137,26 @@ All configuration except `collect_agent_id` and `etcd_endpoint` comes from etcd:
 | `/config/collect_agent/<id>/kafka_topic`         | Kafka topic       | `"metrics"`                       |
 | `/config/collect_agent/<id>/main_server_address` | Alert server      | `"mainserver:50052"`              |
 | `/config/collect_agent/<id>/grpc_port`           | gRPC listen port  | `50051`                           |
-| `/config/collect_agent/<id>/threshold_rules`     | Threshold config  | `{"cpu_total_ns": {"max": 9e11}}` |
+| `/config/collect_agent/<id>/threshold_rules`     | Threshold config  | `{"cpu_usage_percent":{"max":80}}` |
+| `/config/collect_agent/<id>/process_fields`       | Process fields to keep (JSON array); omit or empty = all fields | `["pid","uid","comm","read_bytes"]` |
+| `/config/collect_agent/<id>/comm_prefixes`        | Prefixes for aggregation (JSON array); omit or empty = no aggregation | `["StreamT","kworker"]` |
+| `/config/collect_agent/<id>/pipeline_stages`     | Ordered list of stage names (JSON array); omit or empty = default order | See below |
 | `/config/collect_agent/<id>/user_processors`     | User plugins      | `[{"type": "aggregator"}]`        |
+
+**`process_fields`:** Names must match `metrics.proto` `ProcessMetrics` fields (e.g. `pid`, `cpu_ontime_ns`, `read_bytes`). Unknown names are ignored.
+
+**`comm_prefixes`:** For each process, the **longest** prefix in the list such that `comm.startswith(prefix)` wins. All processes with the same `(uid, matched_prefix)` are merged: numeric fields are summed; `comm` becomes the prefix; `pid` is set to `0`; `process_name` is cleared. Processes that match no prefix are left as single rows.
+
+**Thresholds:** `gpu_utilization_percent` in etcd is accepted as an alias for the max GPU utilization across devices (`gpu_max_utilization_percent` internally).
+
+**`pipeline_stages`:** JSON array of stage identifiers in execution order. Omitted or `[]` uses the default: `schema_validator` → `field_projection` → `prefix_aggregation` → `metrics_enricher` → `threshold_checker`. Each entry can be snake_case (`schema_validator`) or class-style (`SchemaValidator`); unknown names are skipped with a warning. Optional: `user_processor` (requires `user_processors` in etcd and the `user_processor` module). Restart the collect-agent after changing this key so the pipeline is rebuilt.
+
+Example:
+
+```bash
+etcdctl put /config/collect_agent/collect_agent_1/pipeline_stages \
+  '["SchemaValidator","field_projection","prefix_aggregation","metrics_enricher","threshold_checker"]'
+```
 
 ## Monitoring
 

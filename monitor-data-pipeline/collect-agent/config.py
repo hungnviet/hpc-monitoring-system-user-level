@@ -38,6 +38,14 @@ class CollectAgentConfig:
     threshold_rules: List[ThresholdRule] = field(default_factory=list)
     user_processors: List[UserProcessorConfig] = field(default_factory=list)
 
+    # If None or empty: export all process fields (no projection).
+    process_fields: Optional[List[str]] = None
+    # If None or empty: no comm-prefix aggregation.
+    comm_prefixes: Optional[List[str]] = None
+
+    # Ordered stage names (see pipeline registry). If None, use built-in default order.
+    pipeline_stages: Optional[List[str]] = None
+
 
 class ConfigurationManager:
     _instance = None
@@ -130,6 +138,24 @@ class ConfigurationManager:
                 )
                 for proc in processors_data
             ]
+
+        process_fields = self._get_etcd_value(f"{prefix}/process_fields")
+        if process_fields:
+            self._config.process_fields = json.loads(process_fields)
+        else:
+            self._config.process_fields = None
+
+        comm_prefixes = self._get_etcd_value(f"{prefix}/comm_prefixes")
+        if comm_prefixes:
+            self._config.comm_prefixes = json.loads(comm_prefixes)
+        else:
+            self._config.comm_prefixes = None
+
+        pipeline_stages = self._get_etcd_value(f"{prefix}/pipeline_stages")
+        if pipeline_stages:
+            self._config.pipeline_stages = json.loads(pipeline_stages)
+        else:
+            self._config.pipeline_stages = None
 
     def _get_etcd_value(self, key: str) -> Optional[str]:
         try:

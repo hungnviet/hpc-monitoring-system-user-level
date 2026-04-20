@@ -1,6 +1,5 @@
 import json
-import asyncio
-from typing import List
+from typing import List, Optional, Any, Dict
 from aiokafka import AIOKafkaProducer
 from publisher.base import Publisher
 from models import MetricBatch
@@ -58,7 +57,27 @@ class KafkaPublisher(Publisher):
             except Exception as e:
                 logger.error(f"Error publishing batch to Kafka: {e}")
 
+    def _process_to_dict(self, p, keys: Optional[List[str]]) -> Dict[str, Any]:
+        full = {
+            'pid': p.pid,
+            'cpu_ontime_ns': p.cpu_ontime_ns,
+            'uid': p.uid,
+            'comm': p.comm,
+            'read_bytes': p.read_bytes,
+            'write_bytes': p.write_bytes,
+            'net_rx_bytes': p.net_rx_bytes,
+            'net_tx_bytes': p.net_tx_bytes,
+            'avg_rss_bytes': p.avg_rss_bytes,
+            'process_name': p.process_name,
+            'gpu_used_memory_mib': p.gpu_used_memory_mib,
+            'metadata': p.metadata
+        }
+        if not keys:
+            return full
+        return {k: full[k] for k in keys if k in full}
+
     def _serialize_batch(self, batch: MetricBatch) -> dict:
+        exported = batch.metadata.get('exported_process_fields')
         result = {
             'node_id': batch.node_id,
             'timestamp': batch.timestamp,
@@ -67,20 +86,7 @@ class KafkaPublisher(Publisher):
             'received_timestamp': batch.received_timestamp,
             'metadata': batch.metadata,
             'processes': [
-                {
-                    'pid': p.pid,
-                    'cpu_ontime_ns': p.cpu_ontime_ns,
-                    'uid': p.uid,
-                    'comm': p.comm,
-                    'read_bytes': p.read_bytes,
-                    'write_bytes': p.write_bytes,
-                    'net_rx_bytes': p.net_rx_bytes,
-                    'net_tx_bytes': p.net_tx_bytes,
-                    'avg_rss_bytes': p.avg_rss_bytes,
-                    'process_name': p.process_name,
-                    'gpu_used_memory_mib': p.gpu_used_memory_mib,
-                    'metadata': p.metadata
-                }
+                self._process_to_dict(p, exported if exported else None)
                 for p in batch.processes
             ]
         }
