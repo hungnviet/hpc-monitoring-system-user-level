@@ -112,7 +112,8 @@ export async function GET(req: Request) {
       [from, to]
     )
     return NextResponse.json(rows)
-  } catch {
+  } catch (e) {
+    console.error("[/api/analytics/user-usage]", e)
     return NextResponse.json({ error: "DB error" }, { status: 500 })
   } finally {
     client.release()

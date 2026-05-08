@@ -15,7 +15,7 @@ export interface ComputeNode {
 }
 
 // ── Analytics ─────────────────────────────────────────────────────────
-export type ResourceType = "cpu" | "gpu" | "mem" | "disk" | "net"
+export type ResourceType = "cpu" | "mem" | "disk" | "net"
 
 export interface MetricPoint {
   timestamp: string
@@ -116,7 +116,6 @@ export interface AppUsageRow {
   comm: string
   cpu_seconds: number
   peak_mem_mb: number
-  peak_gpu_mib: number
   disk_io_mb: number
   net_io_mb: number
   total_processes: number

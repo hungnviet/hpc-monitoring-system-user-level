@@ -4,7 +4,6 @@ import type { ResourceType } from "@/types"
 const RESOURCES: { value: ResourceType; label: string; color: string }[] = [
   { value: "cpu",  label: "CPU",        color: "#58a6ff" },
   { value: "mem",  label: "Memory",     color: "#3fb950" },
-  { value: "gpu",  label: "GPU",        color: "#bc8cff" },
   { value: "disk", label: "Disk I/O",   color: "#d29922" },
   { value: "net",  label: "Network",    color: "#f85149" },
 ]

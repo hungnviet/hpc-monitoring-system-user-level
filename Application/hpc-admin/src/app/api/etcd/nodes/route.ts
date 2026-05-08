@@ -60,7 +60,8 @@ export async function GET() {
     })
 
     return NextResponse.json(result)
-  } catch {
+  } catch (e) {
+    console.error("[/api/etcd/nodes]", e)
     return NextResponse.json({ error: "etcd unavailable" }, { status: 503 })
   }
 }
@@ -97,7 +98,8 @@ export async function POST(req: Request) {
       { nodeId, target_collect_agent, window, heartbeat_interval, status: "stopped" },
       { status: 201 }
     )
-  } catch {
+  } catch (e) {
+    console.error("[/api/etcd/nodes]", e)
     return NextResponse.json({ error: "etcd unavailable" }, { status: 503 })
   }
 }

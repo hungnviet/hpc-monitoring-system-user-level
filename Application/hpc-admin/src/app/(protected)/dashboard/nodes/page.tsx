@@ -20,7 +20,7 @@ interface EtcdNode {
   status?: "running" | "stopped"
   window?: string
   heartbeat_interval?: string
-  target_collect_agent?: string
+  target_collect_agent: string
 }
 
 interface LatestMetric {
@@ -68,10 +68,10 @@ function merge(
       name:         db.name,
       ip:           db.ip,
       group:        db.group_name,
-      collectAgent: db.collect_agent,
       status:       deriveStatus(etcdStatus),
       etcdStatus,
       etcdLoaded:   !!e,
+      collectAgent: e?.target_collect_agent ?? "UNKNOWN",
       window:       e?.window,
       heartbeat:    e?.heartbeat_interval,
       cpu:          m?.cpu ?? null,

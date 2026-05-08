@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react"
 import { UsageChart } from "@/components/analytics/UsageChart"
 import { UsagePieChart } from "@/components/analytics/UsagePieChart"
 import { ResourcePillSelect } from "@/components/analytics/ResourcePillSelect"
-import { AppUsageTable, type SortCol } from "@/components/analytics/AppUsageTable"
+import { type SortCol } from "@/components/analytics/AppUsageTable"
 import { AppSelector } from "@/components/analytics/AppSelector"
 import { DateRangePicker } from "@/components/ui/DateRangePicker"
 import { Select } from "@/components/ui/Select"
@@ -17,7 +17,6 @@ interface SummaryUser {
   group_name: string
   total_cpu_seconds: string
   peak_mem_bytes: string
-  peak_gpu_mib: string
   total_disk_bytes: string
   total_net_bytes: string
 }
@@ -47,22 +46,20 @@ const viewModeOptions = [
 ]
 
 const RESOURCE_UNIT: Record<string, string> = {
-  cpu: "s", mem: "MB", gpu: "MiB", disk: "MB", net: "MB",
+  cpu: "s", mem: "MB", disk: "MB", net: "MB",
 }
 
 const RESOURCE_LABEL: Record<string, string> = {
   cpu:  "CPU on time (second)",
   mem:  "Peak Memory (MB)",
-  gpu:  "GPU Memory Peak (MiB)",
   disk: "Disk I/O (MB)",
   net:  "Network I/O (MB)",
 }
 
 // Maps resource key → AppUsageRow field (for pie chart aggregation)
-const RESOURCE_FIELD: Record<string, "cpu_seconds" | "peak_mem_mb" | "peak_gpu_mib" | "disk_io_mb" | "net_io_mb"> = {
+const RESOURCE_FIELD: Record<string, "cpu_seconds" | "peak_mem_mb" | "disk_io_mb" | "net_io_mb"> = {
   cpu:  "cpu_seconds",
   mem:  "peak_mem_mb",
-  gpu:  "peak_gpu_mib",
   disk: "disk_io_mb",
   net:  "net_io_mb",
 }
@@ -109,9 +106,6 @@ export default function AnalyticsPage() {
   // Chart data: one series array per resource
   const [chartData, setChartData]     = useState<Record<string, { name: string; data: { timestamp: string; value: number }[] }[]>>({})
   const [loadingChart, setLoadingChart] = useState(false)
-
-  // App usage breakdown collapse state
-  const [isAppUsageExpanded, setIsAppUsageExpanded] = useState(true)
 
   // ── Load user list (always last 7 days for the summary) ─────────────────
 
@@ -224,21 +218,6 @@ export default function AnalyticsPage() {
     setSelectedUids(prev =>
       prev.includes(uid) ? prev.filter(u => u !== uid) : [...prev, uid]
     )
-  }
-
-  function toggleApp(comm: string) {
-    setSelectedApps(prev =>
-      prev.includes(comm) ? prev.filter(c => c !== comm) : [...prev, comm]
-    )
-  }
-
-  function handleSort(col: SortCol) {
-    if (col === sortCol) {
-      setSortDir(d => d === "asc" ? "desc" : "asc")
-    } else {
-      setSortCol(col)
-      setSortDir("desc")
-    }
   }
 
   // ── Skeleton / Error ────────────────────────────────────────────────────

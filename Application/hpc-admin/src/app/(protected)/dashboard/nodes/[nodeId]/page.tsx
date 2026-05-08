@@ -8,6 +8,8 @@ import {
 import { GrafanaPanel } from "@/components/dashboard/GrafanaPanel"
 import { NodeStatusBadge } from "@/components/dashboard/NodeStatusBadge"
 import { Button } from "@/components/ui/Button"
+import { Select } from "@/components/ui/Select"
+import { DateRangePicker } from "@/components/ui/DateRangePicker"
 import type { NodeStatus } from "@/types"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -84,13 +86,38 @@ const FIELDS: FieldDef[] = [
   { label: "Net TX (MB)",      key: "total_net_tx_bytes",      unit: "MB", color: "#ffa198", divisor: 1_048_576 },
 ]
 
-type RangeKey = "24h" | "48h" | "7d" | "30d"
+type RangeKey = "1d" | "2d" | "7d" | "custom"
 
-const GRAFANA_BASE = "http://10.1.8.155:3000/d-solo/adtfbh4/h6-monitoring?orgId=1&timezone=browser&var-gpu=0&refresh=10s&__feature.dashboardSceneSolo=true"
+const timeRangeOptions = [
+  { value: "1d",     label: "Last 1 day" },
+  { value: "2d",     label: "Last 2 days" },
+  { value: "7d",     label: "Last 7 days" },
+  { value: "custom", label: "Custom Range" },
+]
 
-function grafanaUrl(nodeId: string, range: RangeKey, panelId: string) {
-  return `${GRAFANA_BASE}&var-node=${encodeURIComponent(nodeId)}&from=now-${range}&to=now&panelId=${panelId}`
+const RANGE_MS: Record<Exclude<RangeKey, "custom">, number> = {
+  "1d": 86_400_000,
+  "2d": 172_800_000,
+  "7d": 604_800_000,
 }
+
+// System-level (current status) Grafana dashboard.
+// `var-node_id` is bound to the route's nodeId; no time range is forwarded
+// so the panels render with their default "now" window.
+const SYSTEM_GRAFANA_BASE = "http://localhost:3000/d-solo/ad2h9fx/system-level?orgId=1&timezone=browser&refresh=10s&__feature.dashboardSceneSolo=true"
+
+function systemPanelUrl(nodeId: string, panelId: string) {
+  return `${SYSTEM_GRAFANA_BASE}&var-node_id=${encodeURIComponent(nodeId)}&panelId=${panelId}`
+}
+
+const SYSTEM_PANELS: Array<{ title: string; panelId: string }> = [
+  { title: "Current CPU Usage",              panelId: "panel-16" },
+  { title: "Current CPU Memory Usage",       panelId: "panel-26" },
+  { title: "Current GPU Utilization",        panelId: "panel-19" },
+  { title: "Current GPU Memory Utilization", panelId: "panel-24" },
+  { title: "Current GPU Temperature",        panelId: "panel-21" },
+  { title: "Current GPU Power",              panelId: "panel-22" },
+]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -100,9 +127,18 @@ function deriveStatus(s: "running" | "stopped" | "unknown"): NodeStatus {
   return "idle"
 }
 
-function formatBucketTime(iso: string, range: RangeKey) {
+function rangeSpanMs(range: RangeKey, customFrom: string, customTo: string): number {
+  if (range === "custom") {
+    const span = new Date(customTo).getTime() - new Date(customFrom).getTime()
+    return Number.isFinite(span) && span > 0 ? span : RANGE_MS["1d"]
+  }
+  return RANGE_MS[range]
+}
+
+function formatBucketTime(iso: string, spanMs: number) {
   const d = new Date(iso)
-  if (range === "7d" || range === "30d") {
+  // Use date+hour format when the range spans more than ~2 days
+  if (spanMs > 2 * 86_400_000) {
     return `${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")} ${d.getHours().toString().padStart(2, "0")}:00`
   }
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`
@@ -171,7 +207,9 @@ export default function NodeDetailPage({ params }: { params: Promise<{ nodeId: s
 
   // Hourly chart state
   const [hourly, setHourly] = useState<HourlyRow[]>([])
-  const [range, setRange] = useState<RangeKey>("24h")
+  const [range, setRange] = useState<RangeKey>("1d")
+  const [customFrom, setCustomFrom] = useState(() => new Date(Date.now() - 86_400_000).toISOString())
+  const [customTo, setCustomTo]     = useState(() => new Date().toISOString())
   const [selectedFields, setSelectedFields] = useState<string[]>(["avg_cpu_usage_percent", "avg_mem_usage_percent"])
   const [chartLoading, setChartLoading] = useState(false)
 
@@ -214,12 +252,18 @@ export default function NodeDetailPage({ params }: { params: Promise<{ nodeId: s
   const loadHourly = useCallback(async () => {
     setChartLoading(true)
     try {
-      const res = await fetch(`/api/nodes/${nodeId}/hourly?range=${range}`)
+      const qs = new URLSearchParams({ range })
+      if (range === "custom") {
+        if (!customFrom || !customTo) { setHourly([]); return }
+        qs.set("from", customFrom)
+        qs.set("to", customTo)
+      }
+      const res = await fetch(`/api/nodes/${nodeId}/hourly?${qs.toString()}`)
       if (res.ok) setHourly(await res.json())
     } finally {
       setChartLoading(false)
     }
-  }, [nodeId, range])
+  }, [nodeId, range, customFrom, customTo])
 
   useEffect(() => { load() }, [load])
   useEffect(() => { loadHourly() }, [loadHourly])
@@ -250,7 +294,6 @@ export default function NodeDetailPage({ params }: { params: Promise<{ nodeId: s
 
   // ── Derived chart data ──────────────────────────────────────────────────────
 
-  const latest = useMemo(() => hourly.at(-1) ?? null, [hourly])
 
   const selectedSet = useMemo(() => new Set(selectedFields), [selectedFields])
 
@@ -259,15 +302,17 @@ export default function NodeDetailPage({ params }: { params: Promise<{ nodeId: s
     [selectedSet],
   )
 
+  const spanMs = useMemo(() => rangeSpanMs(range, customFrom, customTo), [range, customFrom, customTo])
+
   const chartData = useMemo(() => hourly.map(row => {
     const obj: Record<string, string | number | null> = {
-      time: formatBucketTime(row.bucket_time, range),
+      time: formatBucketTime(row.bucket_time, spanMs),
     }
     for (const f of activeFields) {
       obj[f.key as string] = getFieldValue(row, f)
     }
     return obj
-  }), [hourly, range, activeFields])
+  }), [hourly, spanMs, activeFields])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -341,41 +386,7 @@ export default function NodeDetailPage({ params }: { params: Promise<{ nodeId: s
           <Link href="/config/collection" className="underline">Collection Settings</Link> to register it.
         </div>
       )}
-
-      {/* Current metrics */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-5">
-        <h2 className="text-xs font-semibold text-[#8b949e] uppercase tracking-wide mb-4">
-          Current Metrics
-          {latest && (
-            <span className="ml-2 normal-case font-normal text-[#6e7681]">
-              (last snapshot: {new Date(latest.bucket_time).toLocaleString()})
-            </span>
-          )}
-        </h2>
-        <MetricRow
-          label="CPU Utilization"
-          value={latest ? (latest.avg_cpu_usage_percent !== null ? Math.round(Number(latest.avg_cpu_usage_percent) * 10) / 10 : null) : null}
-          color="#58a6ff"
-        />
-        <MetricRow
-          label="GPU Usage"
-          value={latest ? (latest.avg_gpu_utilization !== null ? Math.round(Number(latest.avg_gpu_utilization) * 10) / 10 : null) : null}
-          color="#bc8cff"
-        />
-        <MetricRow
-          label="Memory Usage"
-          value={latest ? (latest.avg_mem_usage_percent !== null ? Math.round(Number(latest.avg_mem_usage_percent) * 10) / 10 : null) : null}
-          color="#3fb950"
-        />
-        <MetricRow
-          label="GPU Temperature"
-          value={latest?.max_gpu_temperature !== null && latest?.max_gpu_temperature !== undefined
-            ? Math.round(Number(latest.max_gpu_temperature)) : null}
-          unit="°C"
-          color="#d29922"
-        />
-      </div>
-
+      
       {/* Info badges */}
       <div className="flex flex-wrap gap-3">
         <InfoBadge label="Collect Agent" value={node.collectAgent} />
@@ -393,19 +404,24 @@ export default function NodeDetailPage({ params }: { params: Promise<{ nodeId: s
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-xs font-semibold text-[#8b949e] uppercase tracking-wide">Historical Metrics</h2>
-          {/* Time range pills */}
-          <div className="flex rounded-lg border border-[#30363d] overflow-hidden">
-            {(["24h", "48h", "7d", "30d"] as RangeKey[]).map(r => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={`px-3 py-1 text-xs transition-colors cursor-pointer ${range === r ? "bg-[#1f6feb] text-white" : "text-[#8b949e] hover:text-[#e6edf3] hover:bg-[#21262d]"}`}
-              >
-                {r}
-              </button>
-            ))}
+          <div className="w-48">
+            <Select
+              options={timeRangeOptions}
+              value={range}
+              onChange={e => setRange(e.target.value as RangeKey)}
+            />
           </div>
         </div>
+
+        {/* Custom date pickers */}
+        {range === "custom" && (
+          <DateRangePicker
+            from={customFrom}
+            to={customTo}
+            onFromChange={setCustomFrom}
+            onToChange={setCustomTo}
+          />
+        )}
 
         {/* Field selector */}
         <div className="flex flex-wrap gap-2">
@@ -488,10 +504,16 @@ export default function NodeDetailPage({ params }: { params: Promise<{ nodeId: s
 
       {/* Grafana panels */}
       <div>
-        <h2 className="text-sm font-semibold text-[#8b949e] mb-3 uppercase tracking-wide">Grafana Panels</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <GrafanaPanel src={grafanaUrl(nodeId, range, "panel-15")}  height={220} />
-          <GrafanaPanel src={grafanaUrl(nodeId, range, "panel-17")}  height={220} />
+        <h2 className="text-sm font-semibold text-[#8b949e] mb-3 uppercase tracking-wide">Current status of node</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {SYSTEM_PANELS.map(p => (
+            <GrafanaPanel
+              key={p.panelId}
+              title={p.title}
+              src={systemPanelUrl(nodeId, p.panelId)}
+              height={220}
+            />
+          ))}
         </div>
       </div>
     </div>

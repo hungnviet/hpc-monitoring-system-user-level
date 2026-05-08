@@ -4,8 +4,12 @@ import { NextResponse } from "next/server"
 // Body: { message: string }
 // Stub: returns canned responses based on keywords
 export async function POST(req: Request) {
-  const { message } = await req.json()
-  const lower = (message as string).toLowerCase()
+  const body = await req.json()
+  const message = body?.message
+  if (!message || typeof message !== "string") {
+    return NextResponse.json({ error: "message is required" }, { status: 400 })
+  }
+  const lower = message.toLowerCase()
 
   let reply: string
 

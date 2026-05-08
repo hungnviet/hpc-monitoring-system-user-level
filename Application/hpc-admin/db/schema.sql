@@ -32,9 +32,7 @@ CREATE TABLE IF NOT EXISTS user_app_hourly (
     process_count INT
 );
 SELECT create_hypertable('user_app_hourly', 'bucket_time', if_not_exists => TRUE);
-root@hpcc:/opt/timescale# cat 
-create_agg_tables.sql  docker-compose.yml     schema.sql             
-root@hpcc:/opt/timescale# cat schema.sql 
+
 CREATE TABLE IF NOT EXISTS nodes (
   id		TEXT PRIMARY KEY,
   name		TEXT NOT NULL,
