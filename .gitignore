@@ -155,3 +155,7 @@ monitor-data-pipeline/data-service/influx/config/*
 # Generic
 **/.env
 !**/.env.example
+
+# TimescaleDB
+monitor-data-pipeline/data-service/timescale/data/*
+!monitor-data-pipeline/data-service/timescale/data/.gitkeep
