@@ -165,3 +165,7 @@ monitor-data-pipeline/data-service/influx/config/*
 # TimescaleDB
 monitor-data-pipeline/data-service/timescale/data/*
 !monitor-data-pipeline/data-service/timescale/data/.gitkeep
+
+# Grafana
+monitor-data-pipeline/grafana/data/*
+!monitor-data-pipeline/grafana/data/.gitkeep

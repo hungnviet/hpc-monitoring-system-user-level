@@ -1,1 +1,32 @@
-bỏ vô đây nha AN :)))
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: hpc_grafana
+    user: "1000:1000"
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - GF_USERS_ALLOW_SIGN_UP=false
+      
+      # Allow Grafana panels/dashboards to be embedded in iframe
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+
+      # Allow viewing embedded panels without login
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+
+      # Optional but useful if embedded from another frontend/domain
+      - GF_SECURITY_COOKIE_SAMESITE=none
+      - GF_SECURITY_COOKIE_SECURE=false
+
+      # Optional: set this to the public URL you use to access Grafana
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    volumes:
+      - ./data:/var/lib/grafana
+
+networks:
+  default:
+    name: hpc_network
