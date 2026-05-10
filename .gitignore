@@ -137,3 +137,7 @@ dmypy.json
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Kafka runtime data
+monitor-data-pipeline/kafka/data/*
+!monitor-data-pipeline/kafka/data/.gitkeep
