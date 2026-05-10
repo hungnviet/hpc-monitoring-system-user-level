@@ -1,0 +1,36 @@
+services:
+  # Service 1: Run consuming metrics script
+  metrics-worker:
+    build: .
+    container_name: hpc_metrics_consumer
+    restart: always
+    network_mode: "host"
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    command: python -u monitor_consumer.py
+
+  # Service 2: Run metadata synchronizing script
+  metadata-sync-worker:
+    build: .
+    container_name: hpc_metadata_sync
+    restart: "no"
+    network_mode: "host"
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    command: python sync_metadata.py
+
+  # Service 3: Run hourly ETL aggregation
+  hourly-aggregator-worker:
+    build: .
+    container_name: hpc_hourly_aggregator
+    restart: always
+    network_mode: "host"
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    command: python -u hourly_aggregator.py
