@@ -1,1 +1,0 @@
-code để consume từ kafka, blabla bla 
