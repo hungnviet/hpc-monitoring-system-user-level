@@ -138,6 +138,20 @@ dmypy.json
 # Jupyter
 .ipynb_checkpoints/
 
+
+########################################
+# DATA SERVICES
+########################################
 # Kafka runtime data
 monitor-data-pipeline/kafka/data/*
 !monitor-data-pipeline/kafka/data/.gitkeep
+
+# InfluxDB
+monitor-data-pipeline/data-service/influx/data/*
+!monitor-data-pipeline/data-service/influx/data/.gitkeep
+monitor-data-pipeline/data-service/influx/config/*
+!monitor-data-pipeline/data-service/influx/config/.gitkeep
+
+# Generic
+**/.env
+!**/.env.example
