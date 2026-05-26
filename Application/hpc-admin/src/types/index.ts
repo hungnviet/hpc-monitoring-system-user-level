@@ -15,7 +15,7 @@ export interface ComputeNode {
 }
 
 // ── Analytics ─────────────────────────────────────────────────────────
-export type ResourceType = "cpu" | "mem" | "disk" | "net"
+export type ResourceType = "cpu" | "mem" | "disk" | "net" | "gpu"
 
 export interface MetricPoint {
   timestamp: string
@@ -103,11 +103,20 @@ export interface Notification {
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────
+export interface Citation {
+  chunk_id: string
+  page: number
+  section_path: string[]
+}
+
 export interface ChatMessage {
   id: string
   role: "user" | "assistant"
   content: string
   timestamp: string
+  citations?: Citation[]
+  streaming?: boolean
+  error?: boolean
 }
 
 // ── App Usage (analytics) ────────────────────────────────────────────
@@ -116,6 +125,7 @@ export interface AppUsageRow {
   comm: string
   cpu_seconds: number
   peak_mem_mb: number
+  peak_gpu_mib?: number
   disk_io_mb: number
   net_io_mb: number
   total_processes: number

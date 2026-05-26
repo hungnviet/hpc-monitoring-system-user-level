@@ -7,6 +7,7 @@ const EXAMPLES = [
   "Show GPU memory usage",
   "Show CPU usage for all nodes",
   "Plot memory consumption over time",
+  "Give me the line chart show the cpu  memory usage of node 2 and node 3 in last 2 days"
 ]
 
 interface AiResult {
@@ -29,7 +30,7 @@ export default function AiChartPage() {
     setSaved(false)
     setResult(null)
     try {
-      const res = await fetch("http://localhost:5000/visualize", {
+      const res = await fetch(process.env.NEXT_PUBLIC_AI_VISUALIZE_URL!, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: prompt }),
